@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://saha-food-backend.vercel.app/api";
 
 const buildHeaders = (token) => ({
   "Content-Type": "application/json",
