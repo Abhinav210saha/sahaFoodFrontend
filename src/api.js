@@ -1,0 +1,132 @@
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+const buildHeaders = (token) => ({
+  "Content-Type": "application/json",
+  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+});
+
+async function request(path, options = {}) {
+  const response = await fetch(`${API_URL}${path}`, options);
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || "Something went wrong");
+  }
+
+  return data;
+}
+
+export const api = {
+  register: (payload) =>
+    request("/auth/register", {
+      method: "POST",
+      headers: buildHeaders(),
+      body: JSON.stringify(payload),
+    }),
+  login: (payload) =>
+    request("/auth/login", {
+      method: "POST",
+      headers: buildHeaders(),
+      body: JSON.stringify(payload),
+    }),
+  requestForgotPasswordOtp: (payload) =>
+    request("/auth/forgot-password/request-otp", {
+      method: "POST",
+      headers: buildHeaders(),
+      body: JSON.stringify(payload),
+    }),
+  resetPasswordWithOtp: (payload) =>
+    request("/auth/forgot-password/reset", {
+      method: "POST",
+      headers: buildHeaders(),
+      body: JSON.stringify(payload),
+    }),
+  profile: (token) =>
+    request("/auth/profile", {
+      headers: buildHeaders(token),
+    }),
+  updateProfile: (payload, token) =>
+    request("/auth/profile", {
+      method: "PUT",
+      headers: buildHeaders(token),
+      body: JSON.stringify(payload),
+    }),
+  getAddresses: (token) =>
+    request("/users/addresses", {
+      headers: buildHeaders(token),
+    }),
+  addAddress: (payload, token) =>
+    request("/users/addresses", {
+      method: "POST",
+      headers: buildHeaders(token),
+      body: JSON.stringify(payload),
+    }),
+  updateAddress: (id, payload, token) =>
+    request(`/users/addresses/${id}`, {
+      method: "PUT",
+      headers: buildHeaders(token),
+      body: JSON.stringify(payload),
+    }),
+  deleteAddress: (id, token) =>
+    request(`/users/addresses/${id}`, {
+      method: "DELETE",
+      headers: buildHeaders(token),
+    }),
+  placeOrder: (payload, token) =>
+    request("/orders", {
+      method: "POST",
+      headers: buildHeaders(token),
+      body: JSON.stringify(payload),
+    }),
+  placeBulkOrder: (payload, token) =>
+    request("/orders/bulk", {
+      method: "POST",
+      headers: buildHeaders(token),
+      body: JSON.stringify(payload),
+    }),
+  getMyOrders: (token) =>
+    request("/orders/my", {
+      headers: buildHeaders(token),
+    }),
+  deleteMyOrder: (orderId, token) =>
+    request(`/orders/my/${orderId}`, {
+      method: "DELETE",
+      headers: buildHeaders(token),
+    }),
+  getMenu: () => request("/menu"),
+  getBanners: () => request("/banners"),
+  createMenu: (payload, token) =>
+    request("/menu", {
+      method: "POST",
+      headers: buildHeaders(token),
+      body: JSON.stringify(payload),
+    }),
+  updateMenu: (id, payload, token) =>
+    request(`/menu/${id}`, {
+      method: "PUT",
+      headers: buildHeaders(token),
+      body: JSON.stringify(payload),
+    }),
+  deleteMenu: (id, token) =>
+    request(`/menu/${id}`, {
+      method: "DELETE",
+      headers: buildHeaders(token),
+    }),
+  createBanner: (payload, token) =>
+    request("/banners", {
+      method: "POST",
+      headers: buildHeaders(token),
+      body: JSON.stringify(payload),
+    }),
+  updateBanner: (id, payload, token) =>
+    request(`/banners/${id}`, {
+      method: "PUT",
+      headers: buildHeaders(token),
+      body: JSON.stringify(payload),
+    }),
+  deleteBanner: (id, token) =>
+    request(`/banners/${id}`, {
+      method: "DELETE",
+      headers: buildHeaders(token),
+    }),
+};

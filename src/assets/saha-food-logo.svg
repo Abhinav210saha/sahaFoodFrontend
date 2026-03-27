@@ -1,0 +1,15 @@
+<svg width="720" height="220" viewBox="0 0 720 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sfg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#D66A37"/>
+      <stop offset="100%" stop-color="#9F3916"/>
+    </linearGradient>
+  </defs>
+  <rect x="20" y="20" width="180" height="180" rx="48" fill="url(#sfg)"/>
+  <circle cx="110" cy="110" r="54" fill="#FFF4E6"/>
+  <path d="M110 66C126 66 140 79 140 95C140 109 130 120 117 123V154H103V123C90 120 80 109 80 95C80 79 94 66 110 66Z" fill="#7B2D12"/>
+  <path d="M110 81C102 81 96 87 96 95C96 103 102 109 110 109C118 109 124 103 124 95C124 87 118 81 110 81Z" fill="#D66A37"/>
+  <text x="232" y="95" fill="#26170D" font-family="Manrope, Arial, sans-serif" font-size="58" font-weight="800">Saha Food</text>
+  <text x="232" y="138" fill="#6F5A4B" font-family="Manrope, Arial, sans-serif" font-size="30" font-weight="600" letter-spacing="1">CLOUD KITCHEN</text>
+  <text x="232" y="175" fill="#9F3916" font-family="Manrope, Arial, sans-serif" font-size="22" font-weight="700">Fast. Fresh. Flavorful.</text>
+</svg>
