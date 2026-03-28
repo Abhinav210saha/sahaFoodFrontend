@@ -15,6 +15,8 @@ const statusLabel = (status) =>
     .replaceAll("_", " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
+const statusFlow = ["placed", "preparing", "out_for_delivery", "delivered"];
+
 export function OrdersPage() {
   const navigate = useNavigate();
   const { token } = useAuth();
@@ -96,6 +98,19 @@ export function OrdersPage() {
                     <strong>{order.itemName}</strong>
                     <p className="helper-text">x {order.quantity} | {order.deliverySlotType === "scheduled" ? "Scheduled" : "ASAP"}</p>
                   </div>
+                </div>
+                <div className="order-status-track">
+                  {statusFlow.map((step) => {
+                    const currentIndex = statusFlow.indexOf(order.status);
+                    const stepIndex = statusFlow.indexOf(step);
+                    const isDone = currentIndex >= stepIndex && order.status !== "cancelled";
+                    return (
+                      <span key={step} className={isDone ? "status-step done" : "status-step"}>
+                        {statusLabel(step)}
+                      </span>
+                    );
+                  })}
+                  {order.status === "cancelled" && <span className="status-step cancelled">Cancelled</span>}
                 </div>
                 <p className="helper-text"><strong>Address:</strong> {formatAddress(order.address)}</p>
               </div>

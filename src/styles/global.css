@@ -840,6 +840,35 @@ textarea { resize: vertical; }
   color: var(--brand-dark);
 }
 
+.order-status-track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.status-step {
+  padding: 0.24rem 0.52rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.status-step.done {
+  background: #2d2017;
+  color: #fff;
+  border-color: #2d2017;
+}
+
+.status-step.cancelled {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
 .admin-order-row {
   border-radius: 14px;
   border: 1px solid var(--line);
