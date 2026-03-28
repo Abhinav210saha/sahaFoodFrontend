@@ -17,6 +17,13 @@ export function FoodCard({ item, user, onOrder, onAddToCart, orderingItemId }) {
           <strong>Rs.{item.price}</strong>
           <span>{item.deliveryTime}</span>
         </div>
+        {item.trackInventory && (
+          <p className={item.stockQty <= (item.lowStockThreshold ?? 5) ? "error-text" : "helper-text"}>
+            {item.stockQty <= (item.lowStockThreshold ?? 5)
+              ? `Low stock: only ${item.stockQty} left`
+              : `In stock: ${item.stockQty}`}
+          </p>
+        )}
         <div className="qty-row">
           <span>Qty</span>
           <button type="button" className="qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))}>-</button>

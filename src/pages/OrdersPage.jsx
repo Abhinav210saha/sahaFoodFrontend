@@ -10,6 +10,13 @@ const formatAddress = (address) =>
     .filter(Boolean)
     .join(", ");
 
+const timelineSteps = ["placed", "preparing", "out_for_delivery", "delivered"];
+
+const statusLabel = (status) =>
+  status
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
 export function OrdersPage() {
   const navigate = useNavigate();
   const { token } = useAuth();
@@ -45,6 +52,7 @@ export function OrdersPage() {
     addToCart(
       {
         _id: cartId,
+        menuItemId: order.menuItem || order._id,
         name: order.itemName,
         price: order.itemPrice,
         deliveryTime: order.deliveryTime,
@@ -75,9 +83,28 @@ export function OrdersPage() {
               <div>
                 <strong>{order.itemName} x {order.quantity}</strong>
                 <p>
-                  Rs.{order.totalPrice} | {order.status} | {new Date(order.createdAt).toLocaleString()}
+                  Rs.{order.totalPrice} | {statusLabel(order.status)} | {new Date(order.createdAt).toLocaleString()}
+                </p>
+                <p>
+                  <strong>Slot:</strong>{" "}
+                  {order.deliverySlotType === "scheduled" && order.scheduledFor
+                    ? `Scheduled (${new Date(order.scheduledFor).toLocaleString()})`
+                    : "ASAP"}
                 </p>
                 <p><strong>Address:</strong> {formatAddress(order.address)}</p>
+                <div className="order-timeline">
+                  {timelineSteps.map((step) => {
+                    const currentIndex = timelineSteps.indexOf(order.status);
+                    const stepIndex = timelineSteps.indexOf(step);
+                    const isDone = currentIndex >= stepIndex && order.status !== "cancelled";
+                    return (
+                      <span key={step} className={isDone ? "timeline-step done" : "timeline-step"}>
+                        {statusLabel(step)}
+                      </span>
+                    );
+                  })}
+                  {order.status === "cancelled" && <span className="timeline-step cancelled">Cancelled</span>}
+                </div>
               </div>
               <div className="row-actions">
                 <button

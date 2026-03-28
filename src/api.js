@@ -95,8 +95,23 @@ export const api = {
       method: "DELETE",
       headers: buildHeaders(token),
     }),
+  getAllOrders: (token) =>
+    request("/orders", {
+      headers: buildHeaders(token),
+    }),
+  updateOrderStatus: (orderId, status, token) =>
+    request(`/orders/${orderId}/status`, {
+      method: "PUT",
+      headers: buildHeaders(token),
+      body: JSON.stringify({ status }),
+    }),
+  getAdminDashboard: (token) =>
+    request("/orders/admin/dashboard", {
+      headers: buildHeaders(token),
+    }),
   getMenu: () => request("/menu"),
-  getBanners: () => request("/banners"),
+  getBanners: (includeAll = false) =>
+    request(includeAll ? "/banners?includeAll=true" : "/banners"),
   createMenu: (payload, token) =>
     request("/menu", {
       method: "POST",

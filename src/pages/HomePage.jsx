@@ -111,6 +111,8 @@ export function HomePage() {
   const [orderingItemId, setOrderingItemId] = useState("");
   const [fetchError, setFetchError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [deliverySlotType, setDeliverySlotType] = useState("asap");
+  const [scheduledFor, setScheduledFor] = useState("");
   const [recentSearches, setRecentSearches] = useState([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
@@ -256,17 +258,24 @@ export function HomePage() {
       showToast("Please add/select an address before placing order.", "warning");
       return;
     }
+    if (deliverySlotType === "scheduled" && !scheduledFor) {
+      showToast("Please select a scheduled delivery time.", "warning");
+      return;
+    }
 
     setOrderingItemId(item._id);
 
     try {
       const result = await api.placeOrder(
         {
+          menuItemId: item._id,
           itemName: item.name,
           itemPrice: item.price,
           quantity: Number(quantity) || 1,
           deliveryTime: item.deliveryTime,
           addressId: selectedAddressId,
+          deliverySlotType,
+          scheduledFor: deliverySlotType === "scheduled" ? scheduledFor : undefined,
         },
         token
       );
@@ -282,7 +291,13 @@ export function HomePage() {
   };
 
   const handleAddToCart = (item, quantity) => {
-    addToCart(item, quantity);
+    addToCart(
+      {
+        ...item,
+        menuItemId: item._id,
+      },
+      quantity
+    );
     showToast(`${item.name}: this item is added to cart.`, "success");
   };
 
@@ -400,6 +415,22 @@ export function HomePage() {
                 </option>
               ))}
             </select>
+            <select
+              value={deliverySlotType}
+              onChange={(event) => setDeliverySlotType(event.target.value)}
+              className="address-select"
+            >
+              <option value="asap">ASAP</option>
+              <option value="scheduled">Scheduled</option>
+            </select>
+            {deliverySlotType === "scheduled" && (
+              <input
+                type="datetime-local"
+                value={scheduledFor}
+                onChange={(event) => setScheduledFor(event.target.value)}
+                className="address-select"
+              />
+            )}
             <Link className="ghost-button" to="/profile">Manage addresses</Link>
           </div>
         </section>

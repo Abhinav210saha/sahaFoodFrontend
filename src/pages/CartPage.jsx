@@ -17,6 +17,8 @@ export function CartPage() {
   const { showToast } = useToast();
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState("");
+  const [deliverySlotType, setDeliverySlotType] = useState("asap");
+  const [scheduledFor, setScheduledFor] = useState("");
   const [placing, setPlacing] = useState(false);
 
   useEffect(() => {
@@ -44,16 +46,23 @@ export function CartPage() {
       showToast("Please select an address before checkout.", "warning");
       return;
     }
+    if (deliverySlotType === "scheduled" && !scheduledFor) {
+      showToast("Please choose a scheduled delivery time.", "warning");
+      return;
+    }
     setPlacing(true);
     try {
       const result = await api.placeBulkOrder(
         {
           addressId: selectedAddressId,
           items: items.map((item) => ({
+            menuItemId: item.menuItemId || item._id,
             itemName: item.name,
             itemPrice: item.price,
             quantity: item.quantity,
             deliveryTime: item.deliveryTime,
+            deliverySlotType,
+            scheduledFor: deliverySlotType === "scheduled" ? scheduledFor : undefined,
           })),
         },
         token
@@ -116,6 +125,23 @@ export function CartPage() {
               ))}
             </select>
           </label>
+          <label>
+            Delivery slot
+            <select value={deliverySlotType} onChange={(event) => setDeliverySlotType(event.target.value)}>
+              <option value="asap">ASAP</option>
+              <option value="scheduled">Scheduled</option>
+            </select>
+          </label>
+          {deliverySlotType === "scheduled" && (
+            <label>
+              Scheduled time
+              <input
+                type="datetime-local"
+                value={scheduledFor}
+                onChange={(event) => setScheduledFor(event.target.value)}
+              />
+            </label>
+          )}
           <p className="helper-text">{selectedAddress ? formatAddress(selectedAddress) : "No address selected"}</p>
           <p><strong>Total: Rs.{totalAmount}</strong></p>
           <button type="button" className="primary-button wide-button" disabled={placing} onClick={placeCartOrder}>

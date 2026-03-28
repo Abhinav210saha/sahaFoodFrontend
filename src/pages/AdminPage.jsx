@@ -12,6 +12,9 @@ const defaultMenuForm = {
   deliveryTime: "25 mins",
   isAvailable: true,
   isFeatured: false,
+  trackInventory: false,
+  stockQty: 0,
+  lowStockThreshold: 5,
 };
 
 const defaultBannerForm = {
@@ -26,12 +29,31 @@ const defaultBannerForm = {
   heroTitleText: "",
   heroMetaText: "",
   isActive: true,
+  startsAt: "",
+  endsAt: "",
 };
+
+const ORDER_STATUS_OPTIONS = ["placed", "preparing", "out_for_delivery", "delivered", "cancelled"];
+
+const toDateTimeInputValue = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+};
+
+const statusLabel = (status) =>
+  String(status || "")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
 export function AdminPage() {
   const { token, user } = useAuth();
   const [menu, setMenu] = useState([]);
   const [banners, setBanners] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [dashboard, setDashboard] = useState({ todayOrders: 0, todayRevenue: 0, topItems: [] });
   const [menuForm, setMenuForm] = useState(defaultMenuForm);
   const [bannerForm, setBannerForm] = useState(defaultBannerForm);
   const [editingMenuId, setEditingMenuId] = useState("");
@@ -44,14 +66,21 @@ export function AdminPage() {
   const [error, setError] = useState("");
 
   const loadData = async () => {
-    const [menuData, bannerData] = await Promise.all([api.getMenu(), api.getBanners()]);
+    const [menuData, bannerData, orderData, dashboardData] = await Promise.all([
+      api.getMenu(),
+      api.getBanners(true),
+      api.getAllOrders(token),
+      api.getAdminDashboard(token),
+    ]);
     setMenu(menuData);
     setBanners(bannerData);
+    setOrders(orderData);
+    setDashboard(dashboardData);
   };
 
   useEffect(() => {
     loadData().catch((err) => setError(err.message));
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     return () => {
@@ -68,7 +97,10 @@ export function AdminPage() {
     () => ({
       totalItems: menu.length,
       availableItems: menu.filter((item) => item.isAvailable).length,
-      activeBanners: banners.filter((banner) => banner.isActive).length,
+      lowStockItems: menu.filter(
+        (item) => item.trackInventory && item.stockQty <= (item.lowStockThreshold ?? 5)
+      ).length,
+      activeBanners: banners.filter((banner) => banner.isCurrentlyLive).length,
     }),
     [menu, banners]
   );
@@ -89,6 +121,9 @@ export function AdminPage() {
       payload.append("deliveryTime", menuForm.deliveryTime);
       payload.append("isAvailable", String(Boolean(menuForm.isAvailable)));
       payload.append("isFeatured", String(Boolean(menuForm.isFeatured)));
+      payload.append("trackInventory", String(Boolean(menuForm.trackInventory)));
+      payload.append("stockQty", String(Number(menuForm.stockQty || 0)));
+      payload.append("lowStockThreshold", String(Number(menuForm.lowStockThreshold || 0)));
       if (menuImageFile) {
         payload.append("image", menuImageFile);
       }
@@ -128,6 +163,8 @@ export function AdminPage() {
       payload.append("heroTitleText", bannerForm.heroTitleText || "");
       payload.append("heroMetaText", bannerForm.heroMetaText || "");
       payload.append("isActive", String(Boolean(bannerForm.isActive)));
+      payload.append("startsAt", bannerForm.startsAt || "");
+      payload.append("endsAt", bannerForm.endsAt || "");
       if (bannerImageFile) {
         payload.append("image", bannerImageFile);
       }
@@ -162,6 +199,9 @@ export function AdminPage() {
       deliveryTime: item.deliveryTime || "25 mins",
       isAvailable: Boolean(item.isAvailable),
       isFeatured: Boolean(item.isFeatured),
+      trackInventory: Boolean(item.trackInventory),
+      stockQty: item.stockQty ?? 0,
+      lowStockThreshold: item.lowStockThreshold ?? 5,
     });
     setMenuImageFile(null);
     setMenuImagePreview(item.image || "");
@@ -181,6 +221,8 @@ export function AdminPage() {
       heroTitleText: banner.heroTitleText || "",
       heroMetaText: banner.heroMetaText || "",
       isActive: Boolean(banner.isActive),
+      startsAt: toDateTimeInputValue(banner.startsAt),
+      endsAt: toDateTimeInputValue(banner.endsAt),
     });
     setBannerImageFile(null);
     setBannerImagePreview(banner.image || "");
@@ -208,23 +250,55 @@ export function AdminPage() {
     }
   };
 
+  const updateStatus = async (orderId, status) => {
+    try {
+      await api.updateOrderStatus(orderId, status, token);
+      setMessage(`Order status set to ${statusLabel(status)}.`);
+      setError("");
+      await loadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <main className="page-shell admin-page">
       <section className="admin-hero">
         <div>
           <p className="eyebrow">Admin panel</p>
           <h1>Welcome back, {user?.name}</h1>
-          <p>Only admin users can update public banners and the food menu from this dashboard.</p>
+          <p>Manage inventory, orders, banner schedules and daily sales in one place.</p>
         </div>
         <div className="admin-stats">
           <article><strong>{stats.totalItems}</strong><span>total items</span></article>
           <article><strong>{stats.availableItems}</strong><span>live dishes</span></article>
+          <article><strong>{stats.lowStockItems}</strong><span>low stock alerts</span></article>
           <article><strong>{stats.activeBanners}</strong><span>active banners</span></article>
+          <article><strong>{dashboard.todayOrders}</strong><span>today orders</span></article>
+          <article><strong>Rs.{dashboard.todayRevenue}</strong><span>today revenue</span></article>
         </div>
       </section>
 
       {message && <p className="success-text">{message}</p>}
       {error && <p className="error-text">{error}</p>}
+
+      <section className="admin-list-grid">
+        <div className="admin-list-card">
+          <div className="card-heading"><h2>Top selling items</h2></div>
+          {dashboard.topItems?.length ? (
+            dashboard.topItems.map((item) => (
+              <article key={item.itemName} className="manage-row">
+                <div>
+                  <strong>{item.itemName}</strong>
+                  <p>{item.quantitySold} sold | Rs.{item.revenue}</p>
+                </div>
+              </article>
+            ))
+          ) : (
+            <p className="helper-text">No sales yet.</p>
+          )}
+        </div>
+      </section>
 
       <section className="admin-grid">
         <form className="admin-card stack-form" onSubmit={saveMenu}>
@@ -265,9 +339,7 @@ export function AdminPage() {
               onChange={(e) => {
                 const file = e.target.files?.[0] || null;
                 setMenuImageFile(file);
-                if (file) {
-                  setMenuImagePreview(URL.createObjectURL(file));
-                }
+                if (file) setMenuImagePreview(URL.createObjectURL(file));
               }}
               required={!editingMenuId}
             />
@@ -282,6 +354,13 @@ export function AdminPage() {
           <label>Delivery time<input value={menuForm.deliveryTime} onChange={(e) => setMenuForm({ ...menuForm, deliveryTime: e.target.value })} /></label>
           <label className="checkbox-row"><input type="checkbox" checked={menuForm.isAvailable} onChange={(e) => setMenuForm({ ...menuForm, isAvailable: e.target.checked })} />Available</label>
           <label className="checkbox-row"><input type="checkbox" checked={menuForm.isFeatured} onChange={(e) => setMenuForm({ ...menuForm, isFeatured: e.target.checked })} />Featured</label>
+          <label className="checkbox-row"><input type="checkbox" checked={menuForm.trackInventory} onChange={(e) => setMenuForm({ ...menuForm, trackInventory: e.target.checked })} />Track inventory</label>
+          {menuForm.trackInventory && (
+            <>
+              <label>Stock quantity<input type="number" min="0" value={menuForm.stockQty} onChange={(e) => setMenuForm({ ...menuForm, stockQty: e.target.value })} /></label>
+              <label>Low stock threshold<input type="number" min="0" value={menuForm.lowStockThreshold} onChange={(e) => setMenuForm({ ...menuForm, lowStockThreshold: e.target.value })} /></label>
+            </>
+          )}
           <button className="primary-button wide-button">{editingMenuId ? "Update menu" : "Add menu"}</button>
         </form>
 
@@ -313,9 +392,7 @@ export function AdminPage() {
               onChange={(e) => {
                 const file = e.target.files?.[0] || null;
                 setBannerImageFile(file);
-                if (file) {
-                  setBannerImagePreview(URL.createObjectURL(file));
-                }
+                if (file) setBannerImagePreview(URL.createObjectURL(file));
               }}
               required={!editingBannerId}
             />
@@ -333,6 +410,8 @@ export function AdminPage() {
           <label>Hero badge text<input value={bannerForm.heroBadgeText} onChange={(e) => setBannerForm({ ...bannerForm, heroBadgeText: e.target.value })} placeholder="Trending Tonight" /></label>
           <label>Hero title text<input value={bannerForm.heroTitleText} onChange={(e) => setBannerForm({ ...bannerForm, heroTitleText: e.target.value })} placeholder="Any dish or message..." /></label>
           <label>Hero meta text<input value={bannerForm.heroMetaText} onChange={(e) => setBannerForm({ ...bannerForm, heroMetaText: e.target.value })} placeholder="20 mins delivery" /></label>
+          <label>Start time<input type="datetime-local" value={bannerForm.startsAt} onChange={(e) => setBannerForm({ ...bannerForm, startsAt: e.target.value })} /></label>
+          <label>End time<input type="datetime-local" value={bannerForm.endsAt} onChange={(e) => setBannerForm({ ...bannerForm, endsAt: e.target.value })} /></label>
           <label className="checkbox-row"><input type="checkbox" checked={bannerForm.isActive} onChange={(e) => setBannerForm({ ...bannerForm, isActive: e.target.checked })} />Banner active</label>
           <button className="primary-button wide-button">{editingBannerId ? "Update banner" : "Add banner"}</button>
         </form>
@@ -341,18 +420,26 @@ export function AdminPage() {
       <section className="admin-list-grid">
         <div className="admin-list-card">
           <div className="card-heading"><h2>Current menu</h2></div>
-          {menu.map((item) => (
-            <article key={item._id} className="manage-row">
-              <div>
-                <strong>{item.name}</strong>
-                <p>{item.category} | Rs.{item.price}</p>
-              </div>
-              <div className="row-actions">
-                <button type="button" className="text-button" onClick={() => editMenu(item)}>Edit</button>
-                <button type="button" className="text-button danger" onClick={() => removeMenu(item._id)}>Delete</button>
-              </div>
-            </article>
-          ))}
+          {menu.map((item) => {
+            const lowStock = item.trackInventory && item.stockQty <= (item.lowStockThreshold ?? 5);
+            return (
+              <article key={item._id} className="manage-row">
+                <div>
+                  <strong>{item.name}</strong>
+                  <p>{item.category} | Rs.{item.price}</p>
+                  {item.trackInventory && (
+                    <p className={lowStock ? "error-text" : "helper-text"}>
+                      Stock: {item.stockQty} | Low stock alert at {item.lowStockThreshold}
+                    </p>
+                  )}
+                </div>
+                <div className="row-actions">
+                  <button type="button" className="text-button" onClick={() => editMenu(item)}>Edit</button>
+                  <button type="button" className="text-button danger" onClick={() => removeMenu(item._id)}>Delete</button>
+                </div>
+              </article>
+            );
+          })}
         </div>
 
         <div className="admin-list-card">
@@ -361,11 +448,49 @@ export function AdminPage() {
             <article key={banner._id} className="manage-row">
               <div>
                 <strong>{banner.title}</strong>
-                <p>{banner.ctaText} | {banner.targetItem || banner.targetCategory || "No target"} | {banner.heroBadgeText || "Trending"} | {banner.isActive ? "Active" : "Hidden"}</p>
+                <p>
+                  {banner.ctaText} | {banner.targetItem || banner.targetCategory || "No target"} |{" "}
+                  {banner.isCurrentlyLive ? "Live now" : "Not live"}
+                </p>
+                <p className="helper-text">
+                  {banner.startsAt ? `Starts: ${new Date(banner.startsAt).toLocaleString()}` : "Starts: Immediate"} |{" "}
+                  {banner.endsAt ? `Ends: ${new Date(banner.endsAt).toLocaleString()}` : "Ends: No end date"}
+                </p>
               </div>
               <div className="row-actions">
                 <button type="button" className="text-button" onClick={() => editBanner(banner)}>Edit</button>
                 <button type="button" className="text-button danger" onClick={() => removeBanner(banner._id)}>Delete</button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="admin-list-grid">
+        <div className="admin-list-card">
+          <div className="card-heading"><h2>Order management</h2></div>
+          {orders.map((order) => (
+            <article key={order._id} className="manage-row">
+              <div>
+                <strong>{order.itemName} x {order.quantity}</strong>
+                <p>Rs.{order.totalPrice} | {statusLabel(order.status)}</p>
+                <p className="helper-text">
+                  {order.deliverySlotType === "scheduled" && order.scheduledFor
+                    ? `Scheduled: ${new Date(order.scheduledFor).toLocaleString()}`
+                    : "ASAP"}
+                </p>
+              </div>
+              <div className="row-actions">
+                <select
+                  value={order.status}
+                  onChange={(event) => updateStatus(order._id, event.target.value)}
+                >
+                  {ORDER_STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status}>
+                      {statusLabel(status)}
+                    </option>
+                  ))}
+                </select>
               </div>
             </article>
           ))}
