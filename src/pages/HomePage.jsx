@@ -153,6 +153,9 @@ export function HomePage() {
 
   const selectedAddress = addresses.find((address) => String(address._id) === String(selectedAddressId));
   const featuredForHero = featuredItems[0] || menu[0];
+  const heroImageSrc =
+    heroBanner?.image ||
+    (!loading ? featuredForHero?.image : "");
 
   const handleBannerClick = (banner) => {
     if (banner.targetCategory) {
@@ -247,7 +250,11 @@ export function HomePage() {
           </div>
         </div>
         <div className="hero-visual">
-          <img src={heroBanner?.image || "https://images.unsplash.com/photo-1499028344343-cd173ffc68a9?auto=format&fit=crop&w=1200&q=80"} alt="Saha Food hero" />
+          {heroImageSrc ? (
+            <img src={heroImageSrc} alt="Saha Food hero" />
+          ) : (
+            <div className="hero-image-placeholder" aria-hidden="true" />
+          )}
           <div className="floating-card top">
             <span className="chip">{heroBanner?.heroBadgeText || "Trending Tonight"}</span>
             <strong>{heroBanner?.heroTitleText || featuredForHero?.name || "Butter Chicken Bowl"}</strong>

@@ -310,6 +310,17 @@ img { max-width: 100%; display: block; }
   box-shadow: var(--shadow);
 }
 
+.hero-image-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 560px;
+  border-radius: 28px;
+  border: 1px solid var(--line);
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.75), rgba(244, 230, 214, 0.8), rgba(255, 255, 255, 0.75));
+  background-size: 200% 100%;
+  animation: heroPulse 1.2s linear infinite;
+}
+
 .food-card {
   display: flex;
   flex-direction: column;
@@ -891,6 +902,15 @@ button:disabled {
   }
 }
 
+@keyframes heroPulse {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
 @media (max-width: 980px) {
   .section-heading {
     flex-direction: column;
@@ -907,6 +927,7 @@ button:disabled {
   }
 
   .hero-visual { min-height: 360px; }
+  .hero-image-placeholder { min-height: 360px; }
 
   .auth-content::before {
     width: 280px;
