@@ -781,6 +781,73 @@ textarea { resize: vertical; }
   background: rgba(255, 255, 255, 0.65);
 }
 
+.order-card-v2 {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  margin-bottom: 0.85rem;
+  overflow: hidden;
+}
+
+.order-card-v2 > div:first-child {
+  padding: 0.85rem;
+}
+
+.order-card-v2-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: start;
+  margin-bottom: 0.5rem;
+}
+
+.order-items-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0.6rem 0;
+}
+
+.order-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(203, 95, 45, 0.2), rgba(241, 189, 75, 0.18));
+  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.order-card-v2-actions {
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.order-card-v2-actions .text-button {
+  border-radius: 0;
+  padding: 0.75rem 0.7rem;
+  border: none;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  font-weight: 700;
+}
+
+.order-card-v2-actions .text-button:last-child {
+  border-right: none;
+  color: var(--brand-dark);
+}
+
+.admin-order-row {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  padding: 0.8rem;
+  margin-bottom: 0.65rem;
+  background: rgba(255, 255, 255, 0.7);
+}
+
 .order-status-pill {
   border-radius: 12px;
   border: 1px solid var(--line);

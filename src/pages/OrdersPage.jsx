@@ -10,24 +10,19 @@ const formatAddress = (address) =>
     .filter(Boolean)
     .join(", ");
 
-const timelineSteps = ["placed", "preparing", "out_for_delivery", "delivered"];
-
 const statusLabel = (status) =>
   status
     .replaceAll("_", " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
-const formatCurrency = (value) => `Rs.${Number(value || 0).toFixed(2)}`;
-
 export function OrdersPage() {
   const navigate = useNavigate();
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const { showToast } = useToast();
   const { addToCart } = useCart();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const loadOrders = async () => {
     const data = await api.getMyOrders(token);
@@ -37,19 +32,6 @@ export function OrdersPage() {
   useEffect(() => {
     loadOrders().finally(() => setLoading(false));
   }, [token]);
-
-  const handleDeleteOrder = async (orderId) => {
-    const confirmed = window.confirm("Delete this order from your history?");
-    if (!confirmed) return;
-
-    try {
-      await api.deleteMyOrder(orderId, token);
-      await loadOrders();
-      showToast("Order deleted from history.", "success");
-    } catch (error) {
-      showToast(error.message || "Failed to delete order.", "error");
-    }
-  };
 
   const handleReorder = (order) => {
     const cartId = `reorder-${order.itemName}-${order.itemPrice}`.toLowerCase().replace(/[^a-z0-9-]/g, "");
@@ -71,15 +53,8 @@ export function OrdersPage() {
     order.itemName.toLowerCase().includes(search.trim().toLowerCase())
   );
 
-  const getBillSummary = (order) => {
-    const itemTotal = Number(order.totalPrice || 0);
-    const gst = itemTotal * 0.12;
-    const deliveryFee = 32;
-    const platformFee = 12.5;
-    const convenienceFee = 19;
-    const discount = deliveryFee;
-    const payable = itemTotal + gst + platformFee + convenienceFee;
-    return { itemTotal, gst, deliveryFee, platformFee, convenienceFee, discount, payable };
+  const handleRateOrder = () => {
+    showToast("Rating feature coming soon.", "info");
   };
 
   return (
@@ -92,114 +67,56 @@ export function OrdersPage() {
         </div>
       </section>
 
-      <section className="admin-list-grid orders-layout">
+      <section className="admin-list-grid">
         <div className="admin-list-card order-list-card">
           <div className="card-heading"><h2>Your orders</h2></div>
           <input
             className="search-input"
-            placeholder="Search by dish"
+            placeholder="Search by restaurant or dish"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
           {loading && <p>Loading orders...</p>}
           {!loading && visibleOrders.length === 0 && <p className="helper-text">No orders yet.</p>}
           {!loading && visibleOrders.map((order) => (
-            <article key={order._id} className="manage-row order-card-row">
+            <article key={order._id} className="order-card-v2">
               <div>
-                <strong>{order.itemName} x {order.quantity}</strong>
-                <p>
-                  Rs.{order.totalPrice} | {statusLabel(order.status)} | {new Date(order.createdAt).toLocaleString()}
-                </p>
-                <p>
-                  <strong>Slot:</strong>{" "}
-                  {order.deliverySlotType === "scheduled" && order.scheduledFor
-                    ? `Scheduled (${new Date(order.scheduledFor).toLocaleString()})`
-                    : "ASAP"}
-                </p>
-                <p><strong>Address:</strong> {formatAddress(order.address)}</p>
-                <div className="order-timeline">
-                  {timelineSteps.map((step) => {
-                    const currentIndex = timelineSteps.indexOf(order.status);
-                    const stepIndex = timelineSteps.indexOf(step);
-                    const isDone = currentIndex >= stepIndex && order.status !== "cancelled";
-                    return (
-                      <span key={step} className={isDone ? "timeline-step done" : "timeline-step"}>
-                        {statusLabel(step)}
-                      </span>
-                    );
-                  })}
-                  {order.status === "cancelled" && <span className="timeline-step cancelled">Cancelled</span>}
+                <div className="order-card-v2-top">
+                  <div>
+                    <strong>Order {statusLabel(order.status).toLowerCase()}</strong>
+                    <p className="helper-text">
+                      Placed at {new Date(order.createdAt).toLocaleDateString()} {new Date(order.createdAt).toLocaleTimeString()}
+                    </p>
+                  </div>
+                  <strong>Rs.{order.totalPrice}</strong>
                 </div>
+                <div className="order-items-strip">
+                  <div className="order-thumb">{order.itemName?.[0] || "F"}</div>
+                  <div>
+                    <strong>{order.itemName}</strong>
+                    <p className="helper-text">x {order.quantity} | {order.deliverySlotType === "scheduled" ? "Scheduled" : "ASAP"}</p>
+                  </div>
+                </div>
+                <p className="helper-text"><strong>Address:</strong> {formatAddress(order.address)}</p>
               </div>
-              <div className="row-actions">
+              <div className="order-card-v2-actions">
                 <button
                   type="button"
                   className="text-button"
-                  onClick={() => setSelectedOrder(order)}
+                  onClick={handleRateOrder}
                 >
-                  View details
+                  Rate Order
                 </button>
                 <button
                   type="button"
                   className="text-button"
                   onClick={() => handleReorder(order)}
                 >
-                  Reorder
-                </button>
-                <button
-                  type="button"
-                  className="text-button danger"
-                  onClick={() => handleDeleteOrder(order._id)}
-                >
-                  Delete
+                  Order Again
                 </button>
               </div>
             </article>
           ))}
-        </div>
-
-        <div className="admin-list-card order-details-card">
-          <div className="card-heading">
-            <h2>Order details</h2>
-          </div>
-          {!selectedOrder ? (
-            <p className="helper-text">Select an order to view full details.</p>
-          ) : (
-            <>
-              <article className="order-status-pill">
-                Order is {statusLabel(selectedOrder.status).toLowerCase()}
-              </article>
-              <article className="order-details-block">
-                <strong>{selectedOrder.itemName} x {selectedOrder.quantity}</strong>
-                <p>Order ID: #{selectedOrder._id?.slice(-10)}</p>
-                <p>{new Date(selectedOrder.createdAt).toLocaleString()}</p>
-              </article>
-              <article className="order-details-block">
-                <strong>Bill Summary</strong>
-                {(() => {
-                  const bill = getBillSummary(selectedOrder);
-                  return (
-                    <div className="bill-grid">
-                      <span>Item total</span><span>{formatCurrency(bill.itemTotal)}</span>
-                      <span>GST & packaging</span><span>{formatCurrency(bill.gst)}</span>
-                      <span>Delivery partner fee</span><span><s>{formatCurrency(bill.deliveryFee)}</s> FREE</span>
-                      <span>Platform fee</span><span>{formatCurrency(bill.platformFee)}</span>
-                      <span>Convenience fee</span><span>{formatCurrency(bill.convenienceFee)}</span>
-                      <strong>Paid</strong><strong>{formatCurrency(bill.payable)}</strong>
-                    </div>
-                  );
-                })()}
-              </article>
-              <article className="order-details-block">
-                <strong>{user?.name || "Customer"}</strong>
-                <p>{user?.phone || "No phone"}</p>
-                <p><strong>Address:</strong> {formatAddress(selectedOrder.address)}</p>
-              </article>
-              <button type="button" className="ghost-button wide-button">
-                Invoice
-              </button>
-            </>
-          )}
         </div>
       </section>
     </main>

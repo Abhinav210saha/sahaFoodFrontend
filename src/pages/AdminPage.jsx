@@ -408,9 +408,17 @@ export function AdminPage() {
           <div className="admin-list-card">
             <div className="card-heading"><h2>Order management</h2></div>
             {orders.map((order) => (
-              <article key={order._id} className="manage-row">
+              <article key={order._id} className="manage-row admin-order-row">
                 <div>
                   <strong>{order.itemName} x {order.quantity}</strong>
+                  <p className="helper-text">Order ID: #{String(order._id).slice(-10)}</p>
+                  <p>
+                    <strong>Customer:</strong> {order.user?.name || "Unknown"}{" "}
+                    {order.user?.phone ? `(${order.user.phone})` : ""}
+                  </p>
+                  <p className="helper-text">
+                    Placed: {new Date(order.createdAt).toLocaleDateString()} {new Date(order.createdAt).toLocaleTimeString()}
+                  </p>
                   <p>Rs.{order.totalPrice} | {statusLabel(order.status)}</p>
                   <p className="helper-text">{order.deliverySlotType === "scheduled" && order.scheduledFor ? `Scheduled: ${new Date(order.scheduledFor).toLocaleString()}` : "ASAP"}</p>
                 </div>
