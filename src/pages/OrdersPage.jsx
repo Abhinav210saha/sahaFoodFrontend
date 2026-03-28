@@ -32,7 +32,33 @@ export function OrdersPage() {
   };
 
   useEffect(() => {
-    loadOrders().finally(() => setLoading(false));
+    let isMounted = true;
+
+    const fetchInitial = async () => {
+      try {
+        const data = await api.getMyOrders(token);
+        if (isMounted) setOrders(data);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    const poll = async () => {
+      try {
+        const data = await api.getMyOrders(token);
+        if (isMounted) setOrders(data);
+      } catch {
+        // Silent polling failure to avoid noisy UX.
+      }
+    };
+
+    fetchInitial();
+    const timer = setInterval(poll, 15000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
   }, [token]);
 
   const handleReorder = (order) => {
