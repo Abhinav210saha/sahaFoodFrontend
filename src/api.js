@@ -2,8 +2,8 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   "https://saha-food-backend.vercel.app/api";
 
-const buildHeaders = (token) => ({
-  "Content-Type": "application/json",
+const buildHeaders = (token, isFormData = false) => ({
+  ...(isFormData ? {} : { "Content-Type": "application/json" }),
   ...(token ? { Authorization: `Bearer ${token}` } : {}),
 });
 
@@ -100,14 +100,14 @@ export const api = {
   createMenu: (payload, token) =>
     request("/menu", {
       method: "POST",
-      headers: buildHeaders(token),
-      body: JSON.stringify(payload),
+      headers: buildHeaders(token, true),
+      body: payload,
     }),
   updateMenu: (id, payload, token) =>
     request(`/menu/${id}`, {
       method: "PUT",
-      headers: buildHeaders(token),
-      body: JSON.stringify(payload),
+      headers: buildHeaders(token, true),
+      body: payload,
     }),
   deleteMenu: (id, token) =>
     request(`/menu/${id}`, {

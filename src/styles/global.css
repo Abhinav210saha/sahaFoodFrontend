@@ -637,6 +637,24 @@ textarea { resize: vertical; }
   background: rgba(255, 255, 255, 0.42);
 }
 
+.menu-upload-preview {
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.menu-upload-preview p {
+  margin: 0 0 0.4rem;
+}
+
+.menu-upload-preview img {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
 .food-actions {
   margin-top: 1rem;
 }

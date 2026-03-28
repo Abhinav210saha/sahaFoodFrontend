@@ -36,6 +36,8 @@ export function AdminPage() {
   const [bannerForm, setBannerForm] = useState(defaultBannerForm);
   const [editingMenuId, setEditingMenuId] = useState("");
   const [editingBannerId, setEditingBannerId] = useState("");
+  const [menuImageFile, setMenuImageFile] = useState(null);
+  const [menuImagePreview, setMenuImagePreview] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -48,6 +50,14 @@ export function AdminPage() {
   useEffect(() => {
     loadData().catch((err) => setError(err.message));
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (menuImagePreview && menuImagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(menuImagePreview);
+      }
+    };
+  }, [menuImagePreview]);
 
   const stats = useMemo(
     () => ({
@@ -64,7 +74,19 @@ export function AdminPage() {
     setError("");
 
     try {
-      const payload = { ...menuForm, price: Number(menuForm.price), rating: Number(menuForm.rating) };
+      const payload = new FormData();
+      payload.append("name", menuForm.name);
+      payload.append("description", menuForm.description);
+      payload.append("category", menuForm.category);
+      payload.append("price", String(Number(menuForm.price)));
+      payload.append("rating", String(Number(menuForm.rating)));
+      payload.append("deliveryTime", menuForm.deliveryTime);
+      payload.append("isAvailable", String(Boolean(menuForm.isAvailable)));
+      payload.append("isFeatured", String(Boolean(menuForm.isFeatured)));
+      if (menuImageFile) {
+        payload.append("image", menuImageFile);
+      }
+
       if (editingMenuId) {
         await api.updateMenu(editingMenuId, payload, token);
         setMessage("Menu item updated successfully.");
@@ -75,6 +97,8 @@ export function AdminPage() {
 
       setMenuForm(defaultMenuForm);
       setEditingMenuId("");
+      setMenuImageFile(null);
+      setMenuImagePreview("");
       await loadData();
     } catch (err) {
       setError(err.message);
@@ -105,7 +129,19 @@ export function AdminPage() {
 
   const editMenu = (item) => {
     setEditingMenuId(item._id);
-    setMenuForm(item);
+    setMenuForm({
+      name: item.name || "",
+      description: item.description || "",
+      price: item.price || "",
+      category: item.category || "",
+      image: item.image || "",
+      rating: item.rating || 4.5,
+      deliveryTime: item.deliveryTime || "25 mins",
+      isAvailable: Boolean(item.isAvailable),
+      isFeatured: Boolean(item.isFeatured),
+    });
+    setMenuImageFile(null);
+    setMenuImagePreview(item.image || "");
   };
 
   const editBanner = (banner) => {
@@ -157,13 +193,46 @@ export function AdminPage() {
         <form className="admin-card stack-form" onSubmit={saveMenu}>
           <div className="card-heading">
             <h2>{editingMenuId ? "Edit menu item" : "Add menu item"}</h2>
-            {editingMenuId && <button type="button" className="text-button" onClick={() => { setEditingMenuId(""); setMenuForm(defaultMenuForm); }}>Cancel</button>}
+            {editingMenuId && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  setEditingMenuId("");
+                  setMenuForm(defaultMenuForm);
+                  setMenuImageFile(null);
+                  setMenuImagePreview("");
+                }}
+              >
+                Cancel
+              </button>
+            )}
           </div>
           <label>Name<input value={menuForm.name} onChange={(e) => setMenuForm({ ...menuForm, name: e.target.value })} /></label>
           <label>Description<textarea rows="3" value={menuForm.description} onChange={(e) => setMenuForm({ ...menuForm, description: e.target.value })} /></label>
           <label>Category<input value={menuForm.category} onChange={(e) => setMenuForm({ ...menuForm, category: e.target.value })} /></label>
           <label>Price<input type="number" value={menuForm.price} onChange={(e) => setMenuForm({ ...menuForm, price: e.target.value })} /></label>
-          <label>Image URL<input value={menuForm.image} onChange={(e) => setMenuForm({ ...menuForm, image: e.target.value })} /></label>
+          <label>
+            Upload image
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setMenuImageFile(file);
+                if (file) {
+                  setMenuImagePreview(URL.createObjectURL(file));
+                }
+              }}
+              required={!editingMenuId}
+            />
+          </label>
+          {menuImagePreview && (
+            <div className="menu-upload-preview">
+              <p className="helper-text">Image preview</p>
+              <img src={menuImagePreview} alt="Menu item preview" />
+            </div>
+          )}
           <label>Rating<input type="number" step="0.1" max="5" min="0" value={menuForm.rating} onChange={(e) => setMenuForm({ ...menuForm, rating: e.target.value })} /></label>
           <label>Delivery time<input value={menuForm.deliveryTime} onChange={(e) => setMenuForm({ ...menuForm, deliveryTime: e.target.value })} /></label>
           <label className="checkbox-row"><input type="checkbox" checked={menuForm.isAvailable} onChange={(e) => setMenuForm({ ...menuForm, isAvailable: e.target.checked })} />Available</label>
