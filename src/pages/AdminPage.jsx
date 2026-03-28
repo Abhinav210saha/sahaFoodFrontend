@@ -38,6 +38,8 @@ export function AdminPage() {
   const [editingBannerId, setEditingBannerId] = useState("");
   const [menuImageFile, setMenuImageFile] = useState(null);
   const [menuImagePreview, setMenuImagePreview] = useState("");
+  const [bannerImageFile, setBannerImageFile] = useState(null);
+  const [bannerImagePreview, setBannerImagePreview] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -56,8 +58,11 @@ export function AdminPage() {
       if (menuImagePreview && menuImagePreview.startsWith("blob:")) {
         URL.revokeObjectURL(menuImagePreview);
       }
+      if (bannerImagePreview && bannerImagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(bannerImagePreview);
+      }
     };
-  }, [menuImagePreview]);
+  }, [menuImagePreview, bannerImagePreview]);
 
   const stats = useMemo(
     () => ({
@@ -111,16 +116,33 @@ export function AdminPage() {
     setError("");
 
     try {
+      const payload = new FormData();
+      payload.append("title", bannerForm.title);
+      payload.append("subtitle", bannerForm.subtitle);
+      payload.append("ctaText", bannerForm.ctaText);
+      payload.append("ctaLink", bannerForm.ctaLink);
+      payload.append("targetCategory", bannerForm.targetCategory || "");
+      payload.append("targetItem", bannerForm.targetItem || "");
+      payload.append("heroBadgeText", bannerForm.heroBadgeText || "");
+      payload.append("heroTitleText", bannerForm.heroTitleText || "");
+      payload.append("heroMetaText", bannerForm.heroMetaText || "");
+      payload.append("isActive", String(Boolean(bannerForm.isActive)));
+      if (bannerImageFile) {
+        payload.append("image", bannerImageFile);
+      }
+
       if (editingBannerId) {
-        await api.updateBanner(editingBannerId, bannerForm, token);
+        await api.updateBanner(editingBannerId, payload, token);
         setMessage("Banner updated successfully.");
       } else {
-        await api.createBanner(bannerForm, token);
+        await api.createBanner(payload, token);
         setMessage("Banner created successfully.");
       }
 
       setBannerForm(defaultBannerForm);
       setEditingBannerId("");
+      setBannerImageFile(null);
+      setBannerImagePreview("");
       await loadData();
     } catch (err) {
       setError(err.message);
@@ -146,7 +168,21 @@ export function AdminPage() {
 
   const editBanner = (banner) => {
     setEditingBannerId(banner._id);
-    setBannerForm(banner);
+    setBannerForm({
+      title: banner.title || "",
+      subtitle: banner.subtitle || "",
+      image: banner.image || "",
+      ctaText: banner.ctaText || "Order Now",
+      ctaLink: banner.ctaLink || "#menu",
+      targetCategory: banner.targetCategory || "",
+      targetItem: banner.targetItem || "",
+      heroBadgeText: banner.heroBadgeText || "Trending Tonight",
+      heroTitleText: banner.heroTitleText || "",
+      heroMetaText: banner.heroMetaText || "",
+      isActive: Boolean(banner.isActive),
+    });
+    setBannerImageFile(null);
+    setBannerImagePreview(banner.image || "");
   };
 
   const removeMenu = async (id) => {
@@ -243,11 +279,44 @@ export function AdminPage() {
         <form className="admin-card stack-form" onSubmit={saveBanner}>
           <div className="card-heading">
             <h2>{editingBannerId ? "Edit banner" : "Add banner"}</h2>
-            {editingBannerId && <button type="button" className="text-button" onClick={() => { setEditingBannerId(""); setBannerForm(defaultBannerForm); }}>Cancel</button>}
+            {editingBannerId && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  setEditingBannerId("");
+                  setBannerForm(defaultBannerForm);
+                  setBannerImageFile(null);
+                  setBannerImagePreview("");
+                }}
+              >
+                Cancel
+              </button>
+            )}
           </div>
           <label>Title<input value={bannerForm.title} onChange={(e) => setBannerForm({ ...bannerForm, title: e.target.value })} /></label>
           <label>Subtitle<textarea rows="3" value={bannerForm.subtitle} onChange={(e) => setBannerForm({ ...bannerForm, subtitle: e.target.value })} /></label>
-          <label>Image URL<input value={bannerForm.image} onChange={(e) => setBannerForm({ ...bannerForm, image: e.target.value })} /></label>
+          <label>
+            Upload image
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setBannerImageFile(file);
+                if (file) {
+                  setBannerImagePreview(URL.createObjectURL(file));
+                }
+              }}
+              required={!editingBannerId}
+            />
+          </label>
+          {bannerImagePreview && (
+            <div className="menu-upload-preview">
+              <p className="helper-text">Banner preview</p>
+              <img src={bannerImagePreview} alt="Banner preview" />
+            </div>
+          )}
           <label>CTA text<input value={bannerForm.ctaText} onChange={(e) => setBannerForm({ ...bannerForm, ctaText: e.target.value })} /></label>
           <label>CTA link<input value={bannerForm.ctaLink} onChange={(e) => setBannerForm({ ...bannerForm, ctaLink: e.target.value })} placeholder="#menu or https://..." /></label>
           <label>Target category<input value={bannerForm.targetCategory} onChange={(e) => setBannerForm({ ...bannerForm, targetCategory: e.target.value })} placeholder="Best Sellers, Wraps..." /></label>

@@ -117,14 +117,14 @@ export const api = {
   createBanner: (payload, token) =>
     request("/banners", {
       method: "POST",
-      headers: buildHeaders(token),
-      body: JSON.stringify(payload),
+      headers: buildHeaders(token, true),
+      body: payload,
     }),
   updateBanner: (id, payload, token) =>
     request(`/banners/${id}`, {
       method: "PUT",
-      headers: buildHeaders(token),
-      body: JSON.stringify(payload),
+      headers: buildHeaders(token, true),
+      body: payload,
     }),
   deleteBanner: (id, token) =>
     request(`/banners/${id}`, {
