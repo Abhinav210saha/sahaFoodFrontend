@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { FoodCard } from "../components/FoodCard";
@@ -96,6 +96,8 @@ const formatAddress = (address) =>
     .filter(Boolean)
     .join(", ");
 
+const RECENT_SEARCHES_KEY = "saha_food_recent_searches";
+
 export function HomePage() {
   const { user, token } = useAuth();
   const { showToast } = useToast();
@@ -109,6 +111,9 @@ export function HomePage() {
   const [orderingItemId, setOrderingItemId] = useState("");
   const [fetchError, setFetchError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [recentSearches, setRecentSearches] = useState([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchBoxRef = useRef(null);
 
   useEffect(() => {
     Promise.all([api.getBanners(), api.getMenu()])
@@ -136,7 +141,57 @@ export function HomePage() {
       .catch(() => setAddresses([]));
   }, [user, token]);
 
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || "[]");
+      if (Array.isArray(saved)) {
+        setRecentSearches(saved.filter(Boolean).slice(0, 6));
+      }
+    } catch {
+      setRecentSearches([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const closeOnOutsideClick = (event) => {
+      if (!searchBoxRef.current?.contains(event.target)) {
+        setIsSearchFocused(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, []);
+
+  const saveRecentSearch = (rawQuery) => {
+    const query = rawQuery.trim();
+    if (!query) return;
+    setRecentSearches((prev) => {
+      const next = [query, ...prev.filter((item) => item.toLowerCase() !== query.toLowerCase())].slice(0, 6);
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
   const categories = useMemo(() => ["All", ...new Set(menu.map((item) => item.category))], [menu]);
+  const searchSuggestionPool = useMemo(() => {
+    const set = new Set();
+    menu.forEach((item) => {
+      [item.name, item.category, ...(Array.isArray(item.keywords) ? item.keywords : [])]
+        .filter(Boolean)
+        .forEach((value) => set.add(String(value).trim()));
+    });
+    return Array.from(set);
+  }, [menu]);
+
+  const searchSuggestions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return searchSuggestionPool
+      .filter((text) => text.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [searchSuggestionPool, searchQuery]);
+
   const visibleMenu = menu.filter((item) => {
     const matchesCategory = activeCategory === "All" || item.category === activeCategory;
     const query = searchQuery.trim();
@@ -225,6 +280,17 @@ export function HomePage() {
       menuSection.scrollIntoView({ behavior: "smooth", block: "start" });
     }
     showToast(`Try this today: ${randomItem.name}`, "info");
+  };
+
+  const applySearch = (value) => {
+    setSearchQuery(value);
+    saveRecentSearch(value);
+    setIsSearchFocused(false);
+  };
+
+  const clearRecentSearches = () => {
+    setRecentSearches([]);
+    localStorage.removeItem(RECENT_SEARCHES_KEY);
   };
 
   return (
@@ -330,13 +396,70 @@ export function HomePage() {
           </div>
         </div>
         <div className="menu-tools">
-          <input
-            className="search-input"
-            type="text"
-            placeholder="Search food items..."
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-          />
+          <div className="search-box" ref={searchBoxRef}>
+            <input
+              className="search-input"
+              type="text"
+              placeholder="Search food items..."
+              value={searchQuery}
+              onFocus={() => setIsSearchFocused(true)}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  applySearch(searchQuery);
+                }
+              }}
+            />
+            {isSearchFocused && (
+              <div className="search-suggestions">
+                {searchQuery.trim() ? (
+                  searchSuggestions.length ? (
+                    <>
+                      <p className="search-meta">Suggestions</p>
+                      {searchSuggestions.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          type="button"
+                          className="search-suggestion-item"
+                          onClick={() => applySearch(suggestion)}
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <p className="search-meta">No suggestions found.</p>
+                  )
+                ) : (
+                  <>
+                    <div className="search-meta-row">
+                      <p className="search-meta">Recent searches</p>
+                      {recentSearches.length > 0 && (
+                        <button type="button" className="text-button" onClick={clearRecentSearches}>
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    {recentSearches.length ? (
+                      recentSearches.map((recent) => (
+                        <button
+                          key={recent}
+                          type="button"
+                          className="search-suggestion-item"
+                          onClick={() => applySearch(recent)}
+                        >
+                          {recent}
+                        </button>
+                      ))
+                    ) : (
+                      <p className="search-meta">No recent searches yet.</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
           <div className="category-row">
             {categories.map((category) => (
               <button
