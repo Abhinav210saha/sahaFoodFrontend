@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
@@ -114,17 +115,26 @@ export function CartPage() {
 
         <div className="admin-card stack-form">
           <h2>Checkout</h2>
-          <label>
-            Select address
-            <select value={selectedAddressId} onChange={(event) => setSelectedAddressId(event.target.value)}>
-              <option value="">Select address</option>
-              {addresses.map((address) => (
-                <option key={address._id} value={address._id}>
-                  {address.label} - {address.city}
-                </option>
-              ))}
-            </select>
-          </label>
+          {addresses.length > 0 ? (
+            <label>
+              Select address
+              <select value={selectedAddressId} onChange={(event) => setSelectedAddressId(event.target.value)}>
+                <option value="">Select address</option>
+                {addresses.map((address) => (
+                  <option key={address._id} value={address._id}>
+                    {address.label} - {address.city}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <div className="menu-upload-preview">
+              <p className="helper-text">
+                No saved address found. Add an address before placing checkout order.
+              </p>
+              <Link className="ghost-button" to="/profile">Manage addresses</Link>
+            </div>
+          )}
           <label>
             Delivery slot
             <select value={deliverySlotType} onChange={(event) => setDeliverySlotType(event.target.value)}>
@@ -143,6 +153,7 @@ export function CartPage() {
             </label>
           )}
           <p className="helper-text">{selectedAddress ? formatAddress(selectedAddress) : "No address selected"}</p>
+          <Link className="text-button" to="/profile">Manage addresses</Link>
           <p><strong>Total: Rs.{totalAmount}</strong></p>
           <button type="button" className="primary-button wide-button" disabled={placing} onClick={placeCartOrder}>
             {placing ? "Placing Order..." : "Place Cart Order"}
