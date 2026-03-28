@@ -144,7 +144,8 @@ export function HomePage() {
       !query ||
       looseMatch(item.name, query) ||
       looseMatch(item.category, query) ||
-      looseMatch(item.description, query);
+      looseMatch(item.description, query) ||
+      (Array.isArray(item.keywords) && item.keywords.some((keyword) => looseMatch(keyword, query)));
     return matchesCategory && matchesSearch;
   });
   const featuredItems = menu.filter((item) => item.isFeatured).slice(0, 3);

@@ -7,7 +7,7 @@ const defaultMenuForm = {
   description: "",
   price: "",
   category: "",
-  image: "",
+  keywords: "",
   rating: 4.5,
   deliveryTime: "25 mins",
   isAvailable: true,
@@ -84,6 +84,7 @@ export function AdminPage() {
       payload.append("description", menuForm.description);
       payload.append("category", menuForm.category);
       payload.append("price", String(Number(menuForm.price)));
+      payload.append("keywords", menuForm.keywords || "");
       payload.append("rating", String(Number(menuForm.rating)));
       payload.append("deliveryTime", menuForm.deliveryTime);
       payload.append("isAvailable", String(Boolean(menuForm.isAvailable)));
@@ -156,7 +157,7 @@ export function AdminPage() {
       description: item.description || "",
       price: item.price || "",
       category: item.category || "",
-      image: item.image || "",
+      keywords: Array.isArray(item.keywords) ? item.keywords.join(", ") : "",
       rating: item.rating || 4.5,
       deliveryTime: item.deliveryTime || "25 mins",
       isAvailable: Boolean(item.isAvailable),
@@ -247,6 +248,14 @@ export function AdminPage() {
           <label>Name<input value={menuForm.name} onChange={(e) => setMenuForm({ ...menuForm, name: e.target.value })} /></label>
           <label>Description<textarea rows="3" value={menuForm.description} onChange={(e) => setMenuForm({ ...menuForm, description: e.target.value })} /></label>
           <label>Category<input value={menuForm.category} onChange={(e) => setMenuForm({ ...menuForm, category: e.target.value })} /></label>
+          <label>
+            Keywords (comma separated)
+            <input
+              value={menuForm.keywords}
+              onChange={(e) => setMenuForm({ ...menuForm, keywords: e.target.value })}
+              placeholder="pizza, burger, spicy, chicken roll"
+            />
+          </label>
           <label>Price<input type="number" value={menuForm.price} onChange={(e) => setMenuForm({ ...menuForm, price: e.target.value })} /></label>
           <label>
             Upload image
