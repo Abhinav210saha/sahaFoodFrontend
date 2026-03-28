@@ -113,6 +113,7 @@ export function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
   const searchBoxRef = useRef(null);
 
   useEffect(() => {
@@ -191,6 +192,21 @@ export function HomePage() {
       .filter((text) => text.toLowerCase().includes(q))
       .slice(0, 6);
   }, [searchSuggestionPool, searchQuery]);
+
+  const activeSearchItems = useMemo(
+    () => (searchQuery.trim() ? searchSuggestions : recentSearches),
+    [searchQuery, searchSuggestions, recentSearches]
+  );
+
+  useEffect(() => {
+    if (!isSearchFocused || activeSearchItems.length === 0) {
+      setHighlightedSuggestionIndex(-1);
+      return;
+    }
+    if (highlightedSuggestionIndex >= activeSearchItems.length) {
+      setHighlightedSuggestionIndex(0);
+    }
+  }, [isSearchFocused, activeSearchItems, highlightedSuggestionIndex]);
 
   const visibleMenu = menu.filter((item) => {
     const matchesCategory = activeCategory === "All" || item.category === activeCategory;
@@ -286,6 +302,7 @@ export function HomePage() {
     setSearchQuery(value);
     saveRecentSearch(value);
     setIsSearchFocused(false);
+    setHighlightedSuggestionIndex(-1);
   };
 
   const clearRecentSearches = () => {
@@ -402,12 +419,42 @@ export function HomePage() {
               type="text"
               placeholder="Search food items..."
               value={searchQuery}
-              onFocus={() => setIsSearchFocused(true)}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onFocus={() => {
+                setIsSearchFocused(true);
+                setHighlightedSuggestionIndex(-1);
+              }}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setHighlightedSuggestionIndex(-1);
+              }}
               onKeyDown={(event) => {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  if (!activeSearchItems.length) return;
+                  setHighlightedSuggestionIndex((prev) =>
+                    prev < activeSearchItems.length - 1 ? prev + 1 : 0
+                  );
+                  return;
+                }
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  if (!activeSearchItems.length) return;
+                  setHighlightedSuggestionIndex((prev) =>
+                    prev > 0 ? prev - 1 : activeSearchItems.length - 1
+                  );
+                  return;
+                }
                 if (event.key === "Enter") {
                   event.preventDefault();
+                  if (highlightedSuggestionIndex >= 0 && activeSearchItems[highlightedSuggestionIndex]) {
+                    applySearch(activeSearchItems[highlightedSuggestionIndex]);
+                    return;
+                  }
                   applySearch(searchQuery);
+                }
+                if (event.key === "Escape") {
+                  setIsSearchFocused(false);
+                  setHighlightedSuggestionIndex(-1);
                 }
               }}
             />
@@ -417,11 +464,12 @@ export function HomePage() {
                   searchSuggestions.length ? (
                     <>
                       <p className="search-meta">Suggestions</p>
-                      {searchSuggestions.map((suggestion) => (
+                      {searchSuggestions.map((suggestion, index) => (
                         <button
                           key={suggestion}
                           type="button"
-                          className="search-suggestion-item"
+                          className={`search-suggestion-item ${highlightedSuggestionIndex === index ? "active" : ""}`}
+                          onMouseEnter={() => setHighlightedSuggestionIndex(index)}
                           onClick={() => applySearch(suggestion)}
                         >
                           {suggestion}
@@ -442,11 +490,12 @@ export function HomePage() {
                       )}
                     </div>
                     {recentSearches.length ? (
-                      recentSearches.map((recent) => (
+                      recentSearches.map((recent, index) => (
                         <button
                           key={recent}
                           type="button"
-                          className="search-suggestion-item"
+                          className={`search-suggestion-item ${highlightedSuggestionIndex === index ? "active" : ""}`}
+                          onMouseEnter={() => setHighlightedSuggestionIndex(index)}
                           onClick={() => applySearch(recent)}
                         >
                           {recent}

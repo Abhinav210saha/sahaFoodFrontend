@@ -547,6 +547,12 @@ img { max-width: 100%; display: block; }
   border-color: var(--line);
 }
 
+.search-suggestion-item.active {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--line);
+  outline: 2px solid rgba(203, 95, 45, 0.25);
+}
+
 .food-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
