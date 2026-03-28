@@ -109,6 +109,18 @@ export const api = {
     request("/orders/admin/dashboard", {
       headers: buildHeaders(token),
     }),
+  createPaymentOrder: (amount, token) =>
+    request("/payments/create-order", {
+      method: "POST",
+      headers: buildHeaders(token),
+      body: JSON.stringify({ amount }),
+    }),
+  verifyPayment: (payload, token) =>
+    request("/payments/verify", {
+      method: "POST",
+      headers: buildHeaders(token),
+      body: JSON.stringify(payload),
+    }),
   getMenu: () => request("/menu"),
   getBanners: (includeAll = false) =>
     request(includeAll ? "/banners?includeAll=true" : "/banners"),

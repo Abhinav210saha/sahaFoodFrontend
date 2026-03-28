@@ -5,6 +5,7 @@ import { FoodCard } from "../components/FoodCard";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useCart } from "../context/CartContext";
+import { loadRazorpaySdk } from "../utils/razorpay";
 
 const adminWhatsapp = (import.meta.env.VITE_ADMIN_WHATSAPP || "916202173133").replace(/\D/g, "");
 
@@ -113,6 +114,7 @@ export function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [deliverySlotType, setDeliverySlotType] = useState("asap");
   const [scheduledFor, setScheduledFor] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("cod");
   const [recentSearches, setRecentSearches] = useState([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
@@ -266,6 +268,52 @@ export function HomePage() {
     setOrderingItemId(item._id);
 
     try {
+      let paymentPayload = { paymentMethod: "cod", paymentStatus: "pending", paymentId: "" };
+      const totalAmount = Number(item.price) * (Number(quantity) || 1);
+
+      if (paymentMethod === "online") {
+        const sdkLoaded = await loadRazorpaySdk();
+        if (!sdkLoaded) {
+          showToast("Unable to load payment gateway.", "error");
+          return;
+        }
+
+        const paymentOrder = await api.createPaymentOrder(totalAmount, token);
+        const paymentResult = await new Promise((resolve, reject) => {
+          const razorpay = new window.Razorpay({
+            key: paymentOrder.keyId,
+            amount: paymentOrder.amount,
+            currency: paymentOrder.currency,
+            order_id: paymentOrder.orderId,
+            name: "Saha Food",
+            description: "Food order payment",
+            prefill: {
+              name: user?.name || "",
+              email: user?.email || "",
+              contact: user?.phone || "",
+            },
+            handler: async (response) => {
+              try {
+                await api.verifyPayment(response, token);
+                resolve(response);
+              } catch (error) {
+                reject(error);
+              }
+            },
+            modal: {
+              ondismiss: () => reject(new Error("Payment cancelled")),
+            },
+          });
+          razorpay.open();
+        });
+
+        paymentPayload = {
+          paymentMethod: "online",
+          paymentStatus: "paid",
+          paymentId: paymentResult.razorpay_payment_id,
+        };
+      }
+
       const result = await api.placeOrder(
         {
           menuItemId: item._id,
@@ -276,6 +324,7 @@ export function HomePage() {
           addressId: selectedAddressId,
           deliverySlotType,
           scheduledFor: deliverySlotType === "scheduled" ? scheduledFor : undefined,
+          ...paymentPayload,
         },
         token
       );
@@ -431,6 +480,14 @@ export function HomePage() {
                 className="address-select"
               />
             )}
+            <select
+              value={paymentMethod}
+              onChange={(event) => setPaymentMethod(event.target.value)}
+              className="address-select"
+            >
+              <option value="cod">Cash on Delivery</option>
+              <option value="online">Pay Online (Razorpay)</option>
+            </select>
             <Link className="ghost-button" to="/profile">Manage addresses</Link>
           </div>
         </section>
