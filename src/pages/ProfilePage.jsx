@@ -92,17 +92,26 @@ export function ProfilePage() {
   };
 
   return (
-    <main className="page-shell">
-      <section className="admin-hero">
+    <main className="page-shell profile-page">
+      <section className="admin-hero profile-hero">
         <div>
           <p className="eyebrow">Profile</p>
-          <h1>Manage your profile and delivery addresses</h1>
-          <p>Update your profile name and maintain multiple addresses for faster ordering.</p>
+          <h1>{user?.role === "admin" ? "Admin profile and address manager" : "Manage your profile and delivery addresses"}</h1>
+          <p>
+            {user?.role === "admin"
+              ? "Keep your admin identity updated and manage delivery addresses used for order testing."
+              : "Update your profile name and maintain multiple addresses for faster ordering."}
+          </p>
+        </div>
+        <div className="profile-meta-card">
+          <p><strong>Role:</strong> {user?.role || "customer"}</p>
+          <p><strong>Email:</strong> {user?.email || "Not available"}</p>
+          <p><strong>Phone:</strong> {user?.phone || "Not available"}</p>
         </div>
       </section>
 
-      <section className="admin-grid">
-        <form className="admin-card stack-form" onSubmit={saveProfile}>
+      <section className="admin-grid profile-grid">
+        <form className="admin-card stack-form profile-card" onSubmit={saveProfile}>
           <h2>Profile details</h2>
           <label>
             Name
@@ -111,41 +120,51 @@ export function ProfilePage() {
               onChange={(event) => setProfileForm((prev) => ({ ...prev, name: event.target.value }))}
             />
           </label>
+          <label>
+            Email
+            <input value={user?.email || ""} disabled />
+          </label>
+          <label>
+            Phone
+            <input value={user?.phone || ""} disabled />
+          </label>
           <button className="primary-button wide-button">Update profile</button>
         </form>
 
-        <form className="admin-card stack-form" onSubmit={saveAddress}>
+        <form className="admin-card stack-form profile-card" onSubmit={saveAddress}>
           <h2>Add delivery address</h2>
-          <label>
-            Label
-            <select
-              value={addressForm.label}
-              onChange={(e) => setAddressForm((p) => ({ ...p, label: e.target.value }))}
-            >
-              <option value="Home">Home</option>
-              <option value="Office">Office</option>
-              <option value="Other">Other</option>
-            </select>
-          </label>
-          <label>
-            Flat no and block
-            <input
-              required
-              value={addressForm.line1}
-              onChange={(e) => setAddressForm((p) => ({ ...p, line1: e.target.value }))}
-            />
-          </label>
-          <label>
-            Society name with full address
-            <input
-              value={addressForm.line2}
-              onChange={(e) => setAddressForm((p) => ({ ...p, line2: e.target.value }))}
-            />
-          </label>
-          <label>City<input required value={addressForm.city} onChange={(e) => setAddressForm((p) => ({ ...p, city: e.target.value }))} /></label>
-          <label>State<input required value={addressForm.state} onChange={(e) => setAddressForm((p) => ({ ...p, state: e.target.value }))} /></label>
-          <label>Pincode<input required value={addressForm.pincode} onChange={(e) => setAddressForm((p) => ({ ...p, pincode: e.target.value }))} /></label>
-          <label>Landmark<input value={addressForm.landmark} onChange={(e) => setAddressForm((p) => ({ ...p, landmark: e.target.value }))} /></label>
+          <div className="profile-address-grid">
+            <label>
+              Label
+              <select
+                value={addressForm.label}
+                onChange={(e) => setAddressForm((p) => ({ ...p, label: e.target.value }))}
+              >
+                <option value="Home">Home</option>
+                <option value="Office">Office</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <label>
+              Flat no and block
+              <input
+                required
+                value={addressForm.line1}
+                onChange={(e) => setAddressForm((p) => ({ ...p, line1: e.target.value }))}
+              />
+            </label>
+            <label>
+              Society name with full address
+              <input
+                value={addressForm.line2}
+                onChange={(e) => setAddressForm((p) => ({ ...p, line2: e.target.value }))}
+              />
+            </label>
+            <label>City<input required value={addressForm.city} onChange={(e) => setAddressForm((p) => ({ ...p, city: e.target.value }))} /></label>
+            <label>State<input required value={addressForm.state} onChange={(e) => setAddressForm((p) => ({ ...p, state: e.target.value }))} /></label>
+            <label>Pincode<input required value={addressForm.pincode} onChange={(e) => setAddressForm((p) => ({ ...p, pincode: e.target.value }))} /></label>
+            <label>Landmark<input value={addressForm.landmark} onChange={(e) => setAddressForm((p) => ({ ...p, landmark: e.target.value }))} /></label>
+          </div>
           <label className="checkbox-row">
             <input
               type="checkbox"
@@ -158,12 +177,12 @@ export function ProfilePage() {
         </form>
       </section>
 
-      <section className="admin-list-grid">
-        <div className="admin-list-card">
+      <section className="admin-list-grid profile-list-grid">
+        <div className="admin-list-card profile-list-card">
           <div className="card-heading"><h2>Your addresses</h2></div>
           {addresses.length === 0 && <p className="helper-text">No saved addresses yet.</p>}
           {addresses.map((address) => (
-            <article key={address._id} className="manage-row">
+            <article key={address._id} className="manage-row profile-address-row">
               <div>
                 <strong>{address.label}{address.isDefault ? " (Default)" : ""}</strong>
                 <p>{[address.line1, address.line2, `${address.city}, ${address.state} - ${address.pincode}`, address.landmark].filter(Boolean).join(", ")}</p>
