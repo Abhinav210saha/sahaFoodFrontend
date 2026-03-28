@@ -17,13 +17,17 @@ const statusLabel = (status) =>
     .replaceAll("_", " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
+const formatCurrency = (value) => `Rs.${Number(value || 0).toFixed(2)}`;
+
 export function OrdersPage() {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { showToast } = useToast();
   const { addToCart } = useCart();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const loadOrders = async () => {
     const data = await api.getMyOrders(token);
@@ -63,8 +67,23 @@ export function OrdersPage() {
     navigate("/cart");
   };
 
+  const visibleOrders = orders.filter((order) =>
+    order.itemName.toLowerCase().includes(search.trim().toLowerCase())
+  );
+
+  const getBillSummary = (order) => {
+    const itemTotal = Number(order.totalPrice || 0);
+    const gst = itemTotal * 0.12;
+    const deliveryFee = 32;
+    const platformFee = 12.5;
+    const convenienceFee = 19;
+    const discount = deliveryFee;
+    const payable = itemTotal + gst + platformFee + convenienceFee;
+    return { itemTotal, gst, deliveryFee, platformFee, convenienceFee, discount, payable };
+  };
+
   return (
-    <main className="page-shell">
+    <main className="page-shell orders-page">
       <section className="admin-hero">
         <div>
           <p className="eyebrow">Order History</p>
@@ -73,13 +92,19 @@ export function OrdersPage() {
         </div>
       </section>
 
-      <section className="admin-list-grid">
-        <div className="admin-list-card">
+      <section className="admin-list-grid orders-layout">
+        <div className="admin-list-card order-list-card">
           <div className="card-heading"><h2>Your orders</h2></div>
+          <input
+            className="search-input"
+            placeholder="Search by dish"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
           {loading && <p>Loading orders...</p>}
-          {!loading && orders.length === 0 && <p className="helper-text">No orders yet.</p>}
-          {!loading && orders.map((order) => (
-            <article key={order._id} className="manage-row">
+          {!loading && visibleOrders.length === 0 && <p className="helper-text">No orders yet.</p>}
+          {!loading && visibleOrders.map((order) => (
+            <article key={order._id} className="manage-row order-card-row">
               <div>
                 <strong>{order.itemName} x {order.quantity}</strong>
                 <p>
@@ -110,6 +135,13 @@ export function OrdersPage() {
                 <button
                   type="button"
                   className="text-button"
+                  onClick={() => setSelectedOrder(order)}
+                >
+                  View details
+                </button>
+                <button
+                  type="button"
+                  className="text-button"
                   onClick={() => handleReorder(order)}
                 >
                   Reorder
@@ -124,6 +156,50 @@ export function OrdersPage() {
               </div>
             </article>
           ))}
+        </div>
+
+        <div className="admin-list-card order-details-card">
+          <div className="card-heading">
+            <h2>Order details</h2>
+          </div>
+          {!selectedOrder ? (
+            <p className="helper-text">Select an order to view full details.</p>
+          ) : (
+            <>
+              <article className="order-status-pill">
+                Order is {statusLabel(selectedOrder.status).toLowerCase()}
+              </article>
+              <article className="order-details-block">
+                <strong>{selectedOrder.itemName} x {selectedOrder.quantity}</strong>
+                <p>Order ID: #{selectedOrder._id?.slice(-10)}</p>
+                <p>{new Date(selectedOrder.createdAt).toLocaleString()}</p>
+              </article>
+              <article className="order-details-block">
+                <strong>Bill Summary</strong>
+                {(() => {
+                  const bill = getBillSummary(selectedOrder);
+                  return (
+                    <div className="bill-grid">
+                      <span>Item total</span><span>{formatCurrency(bill.itemTotal)}</span>
+                      <span>GST & packaging</span><span>{formatCurrency(bill.gst)}</span>
+                      <span>Delivery partner fee</span><span><s>{formatCurrency(bill.deliveryFee)}</s> FREE</span>
+                      <span>Platform fee</span><span>{formatCurrency(bill.platformFee)}</span>
+                      <span>Convenience fee</span><span>{formatCurrency(bill.convenienceFee)}</span>
+                      <strong>Paid</strong><strong>{formatCurrency(bill.payable)}</strong>
+                    </div>
+                  );
+                })()}
+              </article>
+              <article className="order-details-block">
+                <strong>{user?.name || "Customer"}</strong>
+                <p>{user?.phone || "No phone"}</p>
+                <p><strong>Address:</strong> {formatAddress(selectedOrder.address)}</p>
+              </article>
+              <button type="button" className="ghost-button wide-button">
+                Invoice
+              </button>
+            </>
+          )}
         </div>
       </section>
     </main>

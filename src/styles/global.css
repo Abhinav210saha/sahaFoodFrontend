@@ -763,6 +763,57 @@ textarea { resize: vertical; }
   border-color: var(--danger);
 }
 
+.orders-layout {
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: start;
+}
+
+.order-list-card .search-input {
+  margin-bottom: 0.8rem;
+  max-width: none;
+}
+
+.order-card-row {
+  border-radius: 12px;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  margin-bottom: 0.7rem;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.order-status-pill {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  padding: 0.7rem 0.8rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.78);
+  margin-bottom: 0.75rem;
+}
+
+.order-details-card {
+  position: sticky;
+  top: 88px;
+}
+
+.order-details-block {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.8rem 0.9rem;
+  margin-bottom: 0.75rem;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.order-details-block p {
+  margin: 0.35rem 0 0;
+}
+
+.bill-grid {
+  margin-top: 0.5rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 0.7rem;
+}
+
 .menu-upload-preview {
   border: 1px dashed var(--line);
   border-radius: 16px;
@@ -1075,6 +1126,15 @@ button:disabled {
   .admin-list-grid,
   .food-grid {
     grid-template-columns: 1fr;
+  }
+
+  .orders-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .order-details-card {
+    position: static;
+    top: auto;
   }
 
   .hero-visual { min-height: 360px; }
