@@ -11,12 +11,14 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { CartPage } from "./pages/CartPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { OrderNotificationsBridge } from "./components/OrderNotificationsBridge";
 
 function App() {
   const { user } = useAuth();
 
   return (
     <div className="app-shell">
+      <OrderNotificationsBridge />
       <Header />
       <div className="route-content">
         <Routes>

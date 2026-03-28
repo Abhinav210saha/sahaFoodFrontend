@@ -9,9 +9,9 @@ export function ToastProvider({ children }) {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
-  const showToast = useCallback((message, type = "info", duration = 2500) => {
+  const showToast = useCallback((message, type = "info", duration = 2500, title = "") => {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type, title }]);
     setTimeout(() => removeToast(id), duration);
   }, [removeToast]);
 
@@ -23,9 +23,15 @@ export function ToastProvider({ children }) {
       <div className="toast-stack" role="status" aria-live="polite">
         {toasts.map((toast) => (
           <div key={toast.id} className={`toast-item ${toast.type}`}>
-            {toast.message}
+            <div className="toast-icon" aria-hidden="true">
+              {toast.type === "success" ? "✓" : toast.type === "error" ? "!" : toast.type === "warning" ? "!" : "i"}
+            </div>
+            <div className="toast-copy">
+              {toast.title ? <strong className="toast-title">{toast.title}</strong> : null}
+              <span className="toast-message">{toast.message}</span>
+            </div>
             <button type="button" className="toast-close" onClick={() => removeToast(toast.id)}>
-              x
+              ×
             </button>
           </div>
         ))}
