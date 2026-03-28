@@ -62,6 +62,7 @@ export function AdminPage() {
   const [menuImagePreview, setMenuImagePreview] = useState("");
   const [bannerImageFile, setBannerImageFile] = useState(null);
   const [bannerImagePreview, setBannerImagePreview] = useState("");
+  const [activeWorkspace, setActiveWorkspace] = useState("overview");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -124,9 +125,7 @@ export function AdminPage() {
       payload.append("trackInventory", String(Boolean(menuForm.trackInventory)));
       payload.append("stockQty", String(Number(menuForm.stockQty || 0)));
       payload.append("lowStockThreshold", String(Number(menuForm.lowStockThreshold || 0)));
-      if (menuImageFile) {
-        payload.append("image", menuImageFile);
-      }
+      if (menuImageFile) payload.append("image", menuImageFile);
 
       if (editingMenuId) {
         await api.updateMenu(editingMenuId, payload, token);
@@ -165,9 +164,7 @@ export function AdminPage() {
       payload.append("isActive", String(Boolean(bannerForm.isActive)));
       payload.append("startsAt", bannerForm.startsAt || "");
       payload.append("endsAt", bannerForm.endsAt || "");
-      if (bannerImageFile) {
-        payload.append("image", bannerImageFile);
-      }
+      if (bannerImageFile) payload.append("image", bannerImageFile);
 
       if (editingBannerId) {
         await api.updateBanner(editingBannerId, payload, token);
@@ -205,6 +202,7 @@ export function AdminPage() {
     });
     setMenuImageFile(null);
     setMenuImagePreview(item.image || "");
+    setActiveWorkspace("menu");
   };
 
   const editBanner = (banner) => {
@@ -226,6 +224,7 @@ export function AdminPage() {
     });
     setBannerImageFile(null);
     setBannerImagePreview(banner.image || "");
+    setActiveWorkspace("banners");
   };
 
   const removeMenu = async (id) => {
@@ -282,220 +281,151 @@ export function AdminPage() {
       {message && <p className="success-text">{message}</p>}
       {error && <p className="error-text">{error}</p>}
 
-      <section className="admin-list-grid">
-        <div className="admin-list-card">
-          <div className="card-heading"><h2>Top selling items</h2></div>
-          {dashboard.topItems?.length ? (
-            dashboard.topItems.map((item) => (
+      <section className="admin-workspace-tabs">
+        <button type="button" className={activeWorkspace === "overview" ? "active" : ""} onClick={() => setActiveWorkspace("overview")}>Overview</button>
+        <button type="button" className={activeWorkspace === "menu" ? "active" : ""} onClick={() => setActiveWorkspace("menu")}>Menu</button>
+        <button type="button" className={activeWorkspace === "banners" ? "active" : ""} onClick={() => setActiveWorkspace("banners")}>Banners</button>
+        <button type="button" className={activeWorkspace === "orders" ? "active" : ""} onClick={() => setActiveWorkspace("orders")}>Orders</button>
+      </section>
+
+      {activeWorkspace === "overview" && (
+        <section className="admin-list-grid">
+          <div className="admin-list-card">
+            <div className="card-heading"><h2>Top selling items</h2></div>
+            {dashboard.topItems?.length ? dashboard.topItems.map((item) => (
               <article key={item.itemName} className="manage-row">
                 <div>
                   <strong>{item.itemName}</strong>
                   <p>{item.quantitySold} sold | Rs.{item.revenue}</p>
                 </div>
               </article>
-            ))
-          ) : (
-            <p className="helper-text">No sales yet.</p>
-          )}
-        </div>
-      </section>
-
-      <section className="admin-grid">
-        <form className="admin-card stack-form" onSubmit={saveMenu}>
-          <div className="card-heading">
-            <h2>{editingMenuId ? "Edit menu item" : "Add menu item"}</h2>
-            {editingMenuId && (
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => {
-                  setEditingMenuId("");
-                  setMenuForm(defaultMenuForm);
-                  setMenuImageFile(null);
-                  setMenuImagePreview("");
-                }}
-              >
-                Cancel
-              </button>
-            )}
+            )) : <p className="helper-text">No sales yet.</p>}
           </div>
-          <label>Name<input value={menuForm.name} onChange={(e) => setMenuForm({ ...menuForm, name: e.target.value })} /></label>
-          <label>Description<textarea rows="3" value={menuForm.description} onChange={(e) => setMenuForm({ ...menuForm, description: e.target.value })} /></label>
-          <label>Category<input value={menuForm.category} onChange={(e) => setMenuForm({ ...menuForm, category: e.target.value })} /></label>
-          <label>
-            Keywords (comma separated)
-            <input
-              value={menuForm.keywords}
-              onChange={(e) => setMenuForm({ ...menuForm, keywords: e.target.value })}
-              placeholder="pizza, burger, spicy, chicken roll"
-            />
-          </label>
-          <label>Price<input type="number" value={menuForm.price} onChange={(e) => setMenuForm({ ...menuForm, price: e.target.value })} /></label>
-          <label>
-            Upload image
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0] || null;
-                setMenuImageFile(file);
-                if (file) setMenuImagePreview(URL.createObjectURL(file));
-              }}
-              required={!editingMenuId}
-            />
-          </label>
-          {menuImagePreview && (
-            <div className="menu-upload-preview">
-              <p className="helper-text">Image preview</p>
-              <img src={menuImagePreview} alt="Menu item preview" />
-            </div>
-          )}
-          <label>Rating<input type="number" step="0.1" max="5" min="0" value={menuForm.rating} onChange={(e) => setMenuForm({ ...menuForm, rating: e.target.value })} /></label>
-          <label>Delivery time<input value={menuForm.deliveryTime} onChange={(e) => setMenuForm({ ...menuForm, deliveryTime: e.target.value })} /></label>
-          <label className="checkbox-row"><input type="checkbox" checked={menuForm.isAvailable} onChange={(e) => setMenuForm({ ...menuForm, isAvailable: e.target.checked })} />Available</label>
-          <label className="checkbox-row"><input type="checkbox" checked={menuForm.isFeatured} onChange={(e) => setMenuForm({ ...menuForm, isFeatured: e.target.checked })} />Featured</label>
-          <label className="checkbox-row"><input type="checkbox" checked={menuForm.trackInventory} onChange={(e) => setMenuForm({ ...menuForm, trackInventory: e.target.checked })} />Track inventory</label>
-          {menuForm.trackInventory && (
-            <>
-              <label>Stock quantity<input type="number" min="0" value={menuForm.stockQty} onChange={(e) => setMenuForm({ ...menuForm, stockQty: e.target.value })} /></label>
-              <label>Low stock threshold<input type="number" min="0" value={menuForm.lowStockThreshold} onChange={(e) => setMenuForm({ ...menuForm, lowStockThreshold: e.target.value })} /></label>
-            </>
-          )}
-          <button className="primary-button wide-button">{editingMenuId ? "Update menu" : "Add menu"}</button>
-        </form>
+        </section>
+      )}
 
-        <form className="admin-card stack-form" onSubmit={saveBanner}>
-          <div className="card-heading">
-            <h2>{editingBannerId ? "Edit banner" : "Add banner"}</h2>
-            {editingBannerId && (
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => {
-                  setEditingBannerId("");
-                  setBannerForm(defaultBannerForm);
-                  setBannerImageFile(null);
-                  setBannerImagePreview("");
-                }}
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-          <label>Title<input value={bannerForm.title} onChange={(e) => setBannerForm({ ...bannerForm, title: e.target.value })} /></label>
-          <label>Subtitle<textarea rows="3" value={bannerForm.subtitle} onChange={(e) => setBannerForm({ ...bannerForm, subtitle: e.target.value })} /></label>
-          <label>
-            Upload image
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0] || null;
-                setBannerImageFile(file);
-                if (file) setBannerImagePreview(URL.createObjectURL(file));
-              }}
-              required={!editingBannerId}
-            />
-          </label>
-          {bannerImagePreview && (
-            <div className="menu-upload-preview">
-              <p className="helper-text">Banner preview</p>
-              <img src={bannerImagePreview} alt="Banner preview" />
+      {activeWorkspace === "menu" && (
+        <>
+          <section className="admin-grid">
+            <form className="admin-card stack-form" onSubmit={saveMenu}>
+              <div className="card-heading">
+                <h2>{editingMenuId ? "Edit menu item" : "Add menu item"}</h2>
+                {editingMenuId && <button type="button" className="text-button" onClick={() => { setEditingMenuId(""); setMenuForm(defaultMenuForm); setMenuImageFile(null); setMenuImagePreview(""); }}>Cancel</button>}
+              </div>
+              <label>Name<input value={menuForm.name} onChange={(e) => setMenuForm({ ...menuForm, name: e.target.value })} /></label>
+              <label>Description<textarea rows="3" value={menuForm.description} onChange={(e) => setMenuForm({ ...menuForm, description: e.target.value })} /></label>
+              <label>Category<input value={menuForm.category} onChange={(e) => setMenuForm({ ...menuForm, category: e.target.value })} /></label>
+              <label>Keywords (comma separated)<input value={menuForm.keywords} onChange={(e) => setMenuForm({ ...menuForm, keywords: e.target.value })} placeholder="pizza, burger, spicy, chicken roll" /></label>
+              <label>Price<input type="number" value={menuForm.price} onChange={(e) => setMenuForm({ ...menuForm, price: e.target.value })} /></label>
+              <label>Upload image<input type="file" accept="image/*" onChange={(e) => { const file = e.target.files?.[0] || null; setMenuImageFile(file); if (file) setMenuImagePreview(URL.createObjectURL(file)); }} required={!editingMenuId} /></label>
+              {menuImagePreview && <div className="menu-upload-preview"><p className="helper-text">Image preview</p><img src={menuImagePreview} alt="Menu item preview" /></div>}
+              <label>Rating<input type="number" step="0.1" max="5" min="0" value={menuForm.rating} onChange={(e) => setMenuForm({ ...menuForm, rating: e.target.value })} /></label>
+              <label>Delivery time<input value={menuForm.deliveryTime} onChange={(e) => setMenuForm({ ...menuForm, deliveryTime: e.target.value })} /></label>
+              <label className="checkbox-row"><input type="checkbox" checked={menuForm.isAvailable} onChange={(e) => setMenuForm({ ...menuForm, isAvailable: e.target.checked })} />Available</label>
+              <label className="checkbox-row"><input type="checkbox" checked={menuForm.isFeatured} onChange={(e) => setMenuForm({ ...menuForm, isFeatured: e.target.checked })} />Featured</label>
+              <label className="checkbox-row"><input type="checkbox" checked={menuForm.trackInventory} onChange={(e) => setMenuForm({ ...menuForm, trackInventory: e.target.checked })} />Track inventory</label>
+              {menuForm.trackInventory && (
+                <>
+                  <label>Stock quantity<input type="number" min="0" value={menuForm.stockQty} onChange={(e) => setMenuForm({ ...menuForm, stockQty: e.target.value })} /></label>
+                  <label>Low stock threshold<input type="number" min="0" value={menuForm.lowStockThreshold} onChange={(e) => setMenuForm({ ...menuForm, lowStockThreshold: e.target.value })} /></label>
+                </>
+              )}
+              <button className="primary-button wide-button">{editingMenuId ? "Update menu" : "Add menu"}</button>
+            </form>
+          </section>
+          <section className="admin-list-grid">
+            <div className="admin-list-card">
+              <div className="card-heading"><h2>Current menu</h2></div>
+              {menu.map((item) => {
+                const lowStock = item.trackInventory && item.stockQty <= (item.lowStockThreshold ?? 5);
+                return (
+                  <article key={item._id} className="manage-row">
+                    <div>
+                      <strong>{item.name}</strong>
+                      <p>{item.category} | Rs.{item.price}</p>
+                      {item.trackInventory && <p className={lowStock ? "error-text" : "helper-text"}>Stock: {item.stockQty} | Low stock alert at {item.lowStockThreshold}</p>}
+                    </div>
+                    <div className="row-actions">
+                      <button type="button" className="text-button" onClick={() => editMenu(item)}>Edit</button>
+                      <button type="button" className="text-button danger" onClick={() => removeMenu(item._id)}>Delete</button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
-          )}
-          <label>CTA text<input value={bannerForm.ctaText} onChange={(e) => setBannerForm({ ...bannerForm, ctaText: e.target.value })} /></label>
-          <label>CTA link<input value={bannerForm.ctaLink} onChange={(e) => setBannerForm({ ...bannerForm, ctaLink: e.target.value })} placeholder="#menu or https://..." /></label>
-          <label>Target category<input value={bannerForm.targetCategory} onChange={(e) => setBannerForm({ ...bannerForm, targetCategory: e.target.value })} placeholder="Best Sellers, Wraps..." /></label>
-          <label>Target item<input value={bannerForm.targetItem} onChange={(e) => setBannerForm({ ...bannerForm, targetItem: e.target.value })} placeholder="Butter Chicken Bowl..." /></label>
-          <label>Hero badge text<input value={bannerForm.heroBadgeText} onChange={(e) => setBannerForm({ ...bannerForm, heroBadgeText: e.target.value })} placeholder="Trending Tonight" /></label>
-          <label>Hero title text<input value={bannerForm.heroTitleText} onChange={(e) => setBannerForm({ ...bannerForm, heroTitleText: e.target.value })} placeholder="Any dish or message..." /></label>
-          <label>Hero meta text<input value={bannerForm.heroMetaText} onChange={(e) => setBannerForm({ ...bannerForm, heroMetaText: e.target.value })} placeholder="20 mins delivery" /></label>
-          <label>Start time<input type="datetime-local" value={bannerForm.startsAt} onChange={(e) => setBannerForm({ ...bannerForm, startsAt: e.target.value })} /></label>
-          <label>End time<input type="datetime-local" value={bannerForm.endsAt} onChange={(e) => setBannerForm({ ...bannerForm, endsAt: e.target.value })} /></label>
-          <label className="checkbox-row"><input type="checkbox" checked={bannerForm.isActive} onChange={(e) => setBannerForm({ ...bannerForm, isActive: e.target.checked })} />Banner active</label>
-          <button className="primary-button wide-button">{editingBannerId ? "Update banner" : "Add banner"}</button>
-        </form>
-      </section>
+          </section>
+        </>
+      )}
 
-      <section className="admin-list-grid">
-        <div className="admin-list-card">
-          <div className="card-heading"><h2>Current menu</h2></div>
-          {menu.map((item) => {
-            const lowStock = item.trackInventory && item.stockQty <= (item.lowStockThreshold ?? 5);
-            return (
-              <article key={item._id} className="manage-row">
+      {activeWorkspace === "banners" && (
+        <>
+          <section className="admin-grid">
+            <form className="admin-card stack-form" onSubmit={saveBanner}>
+              <div className="card-heading">
+                <h2>{editingBannerId ? "Edit banner" : "Add banner"}</h2>
+                {editingBannerId && <button type="button" className="text-button" onClick={() => { setEditingBannerId(""); setBannerForm(defaultBannerForm); setBannerImageFile(null); setBannerImagePreview(""); }}>Cancel</button>}
+              </div>
+              <label>Title<input value={bannerForm.title} onChange={(e) => setBannerForm({ ...bannerForm, title: e.target.value })} /></label>
+              <label>Subtitle<textarea rows="3" value={bannerForm.subtitle} onChange={(e) => setBannerForm({ ...bannerForm, subtitle: e.target.value })} /></label>
+              <label>Upload image<input type="file" accept="image/*" onChange={(e) => { const file = e.target.files?.[0] || null; setBannerImageFile(file); if (file) setBannerImagePreview(URL.createObjectURL(file)); }} required={!editingBannerId} /></label>
+              {bannerImagePreview && <div className="menu-upload-preview"><p className="helper-text">Banner preview</p><img src={bannerImagePreview} alt="Banner preview" /></div>}
+              <label>CTA text<input value={bannerForm.ctaText} onChange={(e) => setBannerForm({ ...bannerForm, ctaText: e.target.value })} /></label>
+              <label>CTA link<input value={bannerForm.ctaLink} onChange={(e) => setBannerForm({ ...bannerForm, ctaLink: e.target.value })} placeholder="#menu or https://..." /></label>
+              <label>Target category<input value={bannerForm.targetCategory} onChange={(e) => setBannerForm({ ...bannerForm, targetCategory: e.target.value })} placeholder="Best Sellers, Wraps..." /></label>
+              <label>Target item<input value={bannerForm.targetItem} onChange={(e) => setBannerForm({ ...bannerForm, targetItem: e.target.value })} placeholder="Butter Chicken Bowl..." /></label>
+              <label>Hero badge text<input value={bannerForm.heroBadgeText} onChange={(e) => setBannerForm({ ...bannerForm, heroBadgeText: e.target.value })} placeholder="Trending Tonight" /></label>
+              <label>Hero title text<input value={bannerForm.heroTitleText} onChange={(e) => setBannerForm({ ...bannerForm, heroTitleText: e.target.value })} placeholder="Any dish or message..." /></label>
+              <label>Hero meta text<input value={bannerForm.heroMetaText} onChange={(e) => setBannerForm({ ...bannerForm, heroMetaText: e.target.value })} placeholder="20 mins delivery" /></label>
+              <label>Start time<input type="datetime-local" value={bannerForm.startsAt} onChange={(e) => setBannerForm({ ...bannerForm, startsAt: e.target.value })} /></label>
+              <label>End time<input type="datetime-local" value={bannerForm.endsAt} onChange={(e) => setBannerForm({ ...bannerForm, endsAt: e.target.value })} /></label>
+              <label className="checkbox-row"><input type="checkbox" checked={bannerForm.isActive} onChange={(e) => setBannerForm({ ...bannerForm, isActive: e.target.checked })} />Banner active</label>
+              <button className="primary-button wide-button">{editingBannerId ? "Update banner" : "Add banner"}</button>
+            </form>
+          </section>
+          <section className="admin-list-grid">
+            <div className="admin-list-card">
+              <div className="card-heading"><h2>Current banners</h2></div>
+              {banners.map((banner) => (
+                <article key={banner._id} className="manage-row">
+                  <div>
+                    <strong>{banner.title}</strong>
+                    <p>{banner.ctaText} | {banner.targetItem || banner.targetCategory || "No target"} | {banner.isCurrentlyLive ? "Live now" : "Not live"}</p>
+                    <p className="helper-text">{banner.startsAt ? `Starts: ${new Date(banner.startsAt).toLocaleString()}` : "Starts: Immediate"} | {banner.endsAt ? `Ends: ${new Date(banner.endsAt).toLocaleString()}` : "Ends: No end date"}</p>
+                  </div>
+                  <div className="row-actions">
+                    <button type="button" className="text-button" onClick={() => editBanner(banner)}>Edit</button>
+                    <button type="button" className="text-button danger" onClick={() => removeBanner(banner._id)}>Delete</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
+
+      {activeWorkspace === "orders" && (
+        <section className="admin-list-grid">
+          <div className="admin-list-card">
+            <div className="card-heading"><h2>Order management</h2></div>
+            {orders.map((order) => (
+              <article key={order._id} className="manage-row">
                 <div>
-                  <strong>{item.name}</strong>
-                  <p>{item.category} | Rs.{item.price}</p>
-                  {item.trackInventory && (
-                    <p className={lowStock ? "error-text" : "helper-text"}>
-                      Stock: {item.stockQty} | Low stock alert at {item.lowStockThreshold}
-                    </p>
-                  )}
+                  <strong>{order.itemName} x {order.quantity}</strong>
+                  <p>Rs.{order.totalPrice} | {statusLabel(order.status)}</p>
+                  <p className="helper-text">{order.deliverySlotType === "scheduled" && order.scheduledFor ? `Scheduled: ${new Date(order.scheduledFor).toLocaleString()}` : "ASAP"}</p>
                 </div>
                 <div className="row-actions">
-                  <button type="button" className="text-button" onClick={() => editMenu(item)}>Edit</button>
-                  <button type="button" className="text-button danger" onClick={() => removeMenu(item._id)}>Delete</button>
+                  <select value={order.status} onChange={(event) => updateStatus(order._id, event.target.value)}>
+                    {ORDER_STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>{statusLabel(status)}</option>
+                    ))}
+                  </select>
                 </div>
               </article>
-            );
-          })}
-        </div>
-
-        <div className="admin-list-card">
-          <div className="card-heading"><h2>Current banners</h2></div>
-          {banners.map((banner) => (
-            <article key={banner._id} className="manage-row">
-              <div>
-                <strong>{banner.title}</strong>
-                <p>
-                  {banner.ctaText} | {banner.targetItem || banner.targetCategory || "No target"} |{" "}
-                  {banner.isCurrentlyLive ? "Live now" : "Not live"}
-                </p>
-                <p className="helper-text">
-                  {banner.startsAt ? `Starts: ${new Date(banner.startsAt).toLocaleString()}` : "Starts: Immediate"} |{" "}
-                  {banner.endsAt ? `Ends: ${new Date(banner.endsAt).toLocaleString()}` : "Ends: No end date"}
-                </p>
-              </div>
-              <div className="row-actions">
-                <button type="button" className="text-button" onClick={() => editBanner(banner)}>Edit</button>
-                <button type="button" className="text-button danger" onClick={() => removeBanner(banner._id)}>Delete</button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="admin-list-grid">
-        <div className="admin-list-card">
-          <div className="card-heading"><h2>Order management</h2></div>
-          {orders.map((order) => (
-            <article key={order._id} className="manage-row">
-              <div>
-                <strong>{order.itemName} x {order.quantity}</strong>
-                <p>Rs.{order.totalPrice} | {statusLabel(order.status)}</p>
-                <p className="helper-text">
-                  {order.deliverySlotType === "scheduled" && order.scheduledFor
-                    ? `Scheduled: ${new Date(order.scheduledFor).toLocaleString()}`
-                    : "ASAP"}
-                </p>
-              </div>
-              <div className="row-actions">
-                <select
-                  value={order.status}
-                  onChange={(event) => updateStatus(order._id, event.target.value)}
-                >
-                  {ORDER_STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status}>
-                      {statusLabel(status)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

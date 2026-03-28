@@ -59,6 +59,7 @@ img { max-width: 100%; display: block; }
   gap: 0.6rem;
   font-family: "Fraunces", serif;
   font-size: 1.3rem;
+  min-width: 0;
 }
 
 .brand-mark img {
@@ -71,6 +72,7 @@ img { max-width: 100%; display: block; }
   display: flex;
   flex-direction: column;
   line-height: 1.05;
+  min-width: 0;
 }
 
 .brand-mark small,
@@ -299,6 +301,7 @@ img { max-width: 100%; display: block; }
 .hero-visual {
   position: relative;
   min-height: 560px;
+  overflow: hidden;
 }
 
 .hero-visual img,
@@ -365,9 +368,9 @@ img { max-width: 100%; display: block; }
   display: grid;
   gap: 0.35rem;
 }
-.floating-card.top { top: 1rem; left: -1rem; }
+.floating-card.top { top: 1rem; left: 1rem; }
 .floating-card.bottom {
-  right: -1rem;
+  right: 1rem;
   bottom: 1.2rem;
   max-width: 330px;
   background: linear-gradient(145deg, rgba(27, 17, 11, 0.92), rgba(65, 35, 16, 0.9));
@@ -708,6 +711,27 @@ textarea { resize: vertical; }
 
 .admin-card .manage-row:hover {
   background: rgba(255, 255, 255, 0.42);
+}
+
+.admin-workspace-tabs {
+  margin: 0.75rem 0 1.25rem;
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.admin-workspace-tabs button {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  font-weight: 700;
+}
+
+.admin-workspace-tabs button.active {
+  background: #2d2017;
+  color: #fff;
+  border-color: #2d2017;
 }
 
 .order-timeline {
@@ -1061,47 +1085,9 @@ button:disabled {
     right: 1rem;
     width: auto;
   }
-}
-
-@media (max-width: 640px) {
-  .page-shell {
-    width: min(100%, calc(100% - 1rem));
-    padding-left: 0;
-    padding-right: 0;
-  }
 
   .site-header {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.75rem 0.9rem;
-  }
-
-  .brand-mark {
-    font-size: 1.1rem;
-    line-height: 1.02;
-  }
-
-  .brand-mark img {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-  }
-
-  .brand-mark small {
-    font-size: 0.82rem;
-  }
-
-  .hero-copy h1 { font-size: 2.6rem; }
-
-  .auth-content {
-    padding: 0.2rem;
-  }
-
-  .auth-card {
-    border-radius: 22px;
+    padding: 0.75rem 1rem;
   }
 
   .site-header .desktop-nav,
@@ -1180,6 +1166,48 @@ button:disabled {
     margin-top: auto;
     display: grid;
     gap: 0.6rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-shell {
+    width: min(100%, calc(100% - 1rem));
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .site-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.75rem 0.9rem;
+  }
+
+  .brand-mark {
+    font-size: 1.1rem;
+    line-height: 1.02;
+  }
+
+  .brand-mark img {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .brand-mark small {
+    font-size: 0.82rem;
+  }
+
+  .hero-copy h1 { font-size: 2.6rem; }
+
+  .auth-content {
+    padding: 0.2rem;
+  }
+
+  .auth-card {
+    border-radius: 22px;
   }
 
   .category-row {
