@@ -330,8 +330,11 @@ export function HomePage() {
       );
 
       const whatsappUrl = `https://wa.me/${adminWhatsapp}?text=${encodeURIComponent(result.whatsappMessage)}`;
-      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-      showToast("Order placed and sent on WhatsApp.", "success");
+      const opened = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        window.location.href = whatsappUrl;
+      }
+      showToast("Order placed. WhatsApp opened, please tap Send.", "success");
     } catch (error) {
       showToast(error.message || "Failed to place order.", "error");
     } finally {

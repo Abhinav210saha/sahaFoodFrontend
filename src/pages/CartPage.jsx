@@ -39,6 +39,12 @@ export function CartPage() {
     () => addresses.find((address) => String(address._id) === String(selectedAddressId)),
     [addresses, selectedAddressId]
   );
+  const hasAddresses = addresses.length > 0;
+  const canPlaceOrder =
+    items.length > 0 &&
+    Boolean(selectedAddressId) &&
+    (deliverySlotType !== "scheduled" || Boolean(scheduledFor)) &&
+    !placing;
 
   const placeCartOrder = async () => {
     if (!items.length) {
@@ -119,9 +125,12 @@ export function CartPage() {
       );
 
       const whatsappUrl = `https://wa.me/${adminWhatsapp}?text=${encodeURIComponent(result.whatsappMessage)}`;
-      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      const opened = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        window.location.href = whatsappUrl;
+      }
       clearCart();
-      showToast("Cart order placed and sent on WhatsApp.", "success");
+      showToast("Cart order placed. WhatsApp opened, please tap Send.", "success");
     } catch (error) {
       showToast(error.message || "Failed to place cart order.", "error");
     } finally {
@@ -164,7 +173,7 @@ export function CartPage() {
 
         <div className="admin-card stack-form">
           <h2>Checkout</h2>
-          {addresses.length > 0 ? (
+          {hasAddresses ? (
             <label>
               Select address
               <select value={selectedAddressId} onChange={(event) => setSelectedAddressId(event.target.value)}>
@@ -181,24 +190,28 @@ export function CartPage() {
               <p className="helper-text">
                 No saved address found. Add an address before placing checkout order.
               </p>
-              <Link className="ghost-button" to="/profile">Manage addresses</Link>
+              <Link className="primary-button" to="/profile">Manage addresses</Link>
             </div>
           )}
-          <label>
-            Delivery slot
-            <select value={deliverySlotType} onChange={(event) => setDeliverySlotType(event.target.value)}>
-              <option value="asap">ASAP</option>
-              <option value="scheduled">Scheduled</option>
-            </select>
-          </label>
-          <label>
-            Payment method
-            <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
-              <option value="cod">Cash on Delivery</option>
-              <option value="online">Pay Online (Razorpay)</option>
-            </select>
-          </label>
-          {deliverySlotType === "scheduled" && (
+          {hasAddresses && (
+            <label>
+              Delivery slot
+              <select value={deliverySlotType} onChange={(event) => setDeliverySlotType(event.target.value)}>
+                <option value="asap">ASAP</option>
+                <option value="scheduled">Scheduled</option>
+              </select>
+            </label>
+          )}
+          {hasAddresses && (
+            <label>
+              Payment method
+              <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
+                <option value="cod">Cash on Delivery</option>
+                <option value="online">Pay Online (Razorpay)</option>
+              </select>
+            </label>
+          )}
+          {hasAddresses && deliverySlotType === "scheduled" && (
             <label>
               Scheduled time
               <input
@@ -209,9 +222,9 @@ export function CartPage() {
             </label>
           )}
           <p className="helper-text">{selectedAddress ? formatAddress(selectedAddress) : "No address selected"}</p>
-          <Link className="text-button" to="/profile">Manage addresses</Link>
+          {hasAddresses && <Link className="text-button" to="/profile">Manage addresses</Link>}
           <p><strong>Total: Rs.{totalAmount}</strong></p>
-          <button type="button" className="primary-button wide-button" disabled={placing} onClick={placeCartOrder}>
+          <button type="button" className="primary-button wide-button" disabled={!canPlaceOrder} onClick={placeCartOrder}>
             {placing ? "Placing Order..." : "Place Cart Order"}
           </button>
           <button type="button" className="ghost-button wide-button" onClick={clearCart}>Clear Cart</button>

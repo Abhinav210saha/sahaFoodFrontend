@@ -74,6 +74,22 @@ export const api = {
       method: "DELETE",
       headers: buildHeaders(token),
     }),
+  getPushPublicKey: (token) =>
+    request("/users/notifications/public-key", {
+      headers: buildHeaders(token),
+    }),
+  subscribePush: (subscription, token) =>
+    request("/users/notifications/subscribe", {
+      method: "POST",
+      headers: buildHeaders(token),
+      body: JSON.stringify({ subscription }),
+    }),
+  unsubscribePush: (endpoint, token) =>
+    request("/users/notifications/unsubscribe", {
+      method: "POST",
+      headers: buildHeaders(token),
+      body: JSON.stringify({ endpoint }),
+    }),
   placeOrder: (payload, token) =>
     request("/orders", {
       method: "POST",

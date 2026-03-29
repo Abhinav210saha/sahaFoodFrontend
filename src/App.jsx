@@ -12,6 +12,7 @@ import { OrdersPage } from "./pages/OrdersPage";
 import { CartPage } from "./pages/CartPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { OrderNotificationsBridge } from "./components/OrderNotificationsBridge";
+import { PushNotificationsBridge } from "./components/PushNotificationsBridge";
 
 function App() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ function App() {
   return (
     <div className="app-shell">
       <OrderNotificationsBridge />
+      <PushNotificationsBridge />
       <Header />
       <div className="route-content">
         <Routes>

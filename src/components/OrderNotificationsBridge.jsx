@@ -14,6 +14,26 @@ export function OrderNotificationsBridge() {
   const previousOrdersRef = useRef(new Map());
   const initializedRef = useRef(false);
 
+  const playNotificationSound = () => {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+      const context = new AudioContextClass();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, context.currentTime);
+      gain.gain.setValueAtTime(0.06, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.18);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.2);
+    } catch {
+      // No-op if autoplay policy blocks sound.
+    }
+  };
+
   useEffect(() => {
     if (!token || !user) return;
 
@@ -38,6 +58,7 @@ export function OrderNotificationsBridge() {
         if (user.role === "admin") {
           const newOrders = orders.filter((order) => !previousOrdersRef.current.has(String(order._id)));
           if (newOrders.length > 0) {
+            playNotificationSound();
             showToast(
               `${newOrders.length} new order${newOrders.length > 1 ? "s" : ""} placed.`,
               "info",
@@ -50,6 +71,7 @@ export function OrderNotificationsBridge() {
             const orderId = String(order._id);
             const previousStatus = previousOrdersRef.current.get(orderId);
             if (previousStatus && previousStatus !== order.status) {
+              playNotificationSound();
               showToast(
                 `${order.itemName}: ${formatStatus(order.status)}`,
                 "success",
