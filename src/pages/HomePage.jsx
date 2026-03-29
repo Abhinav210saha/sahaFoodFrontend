@@ -255,7 +255,7 @@ export function HomePage() {
     }
   };
 
-  const handleOrder = async (item, quantity) => {
+  const handleOrder = async (item, quantity, quickPaymentMethod) => {
     if (!selectedAddressId) {
       showToast("Please add/select an address before placing order.", "warning");
       return;
@@ -268,10 +268,11 @@ export function HomePage() {
     setOrderingItemId(item._id);
 
     try {
+      const selectedPaymentMethod = quickPaymentMethod || paymentMethod;
       let paymentPayload = { paymentMethod: "cod", paymentStatus: "pending", paymentId: "" };
       const totalAmount = Number(item.price) * (Number(quantity) || 1);
 
-      if (paymentMethod === "online") {
+      if (selectedPaymentMethod === "online") {
         const sdkLoaded = await loadRazorpaySdk();
         if (!sdkLoaded) {
           showToast("Unable to load payment gateway.", "error");
@@ -334,7 +335,12 @@ export function HomePage() {
       if (!opened) {
         window.location.href = whatsappUrl;
       }
-      showToast("Order placed. WhatsApp opened, please tap Send.", "success");
+      showToast(
+        selectedPaymentMethod === "online"
+          ? "Online payment successful. WhatsApp opened, please tap Send."
+          : "COD order placed. WhatsApp opened, please tap Send.",
+        "success"
+      );
     } catch (error) {
       showToast(error.message || "Failed to place order.", "error");
     } finally {

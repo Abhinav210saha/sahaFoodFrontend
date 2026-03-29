@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 export function FoodCard({ item, user, onOrder, onAddToCart, orderingItemId }) {
   const [quantity, setQuantity] = useState(1);
+  const [quickPaymentMethod, setQuickPaymentMethod] = useState("cod");
 
   return (
     <article className="food-card">
@@ -34,6 +35,15 @@ export function FoodCard({ item, user, onOrder, onAddToCart, orderingItemId }) {
         <div className="food-actions">
           {user ? (
             <>
+              <select
+                value={quickPaymentMethod}
+                onChange={(event) => setQuickPaymentMethod(event.target.value)}
+                className="address-select"
+                aria-label="Quick order payment method"
+              >
+                <option value="cod">Cash on Delivery</option>
+                <option value="online">Pay Online</option>
+              </select>
               <button
                 type="button"
                 className="ghost-button order-button"
@@ -44,10 +54,10 @@ export function FoodCard({ item, user, onOrder, onAddToCart, orderingItemId }) {
               <button
                 type="button"
                 className="primary-button order-button"
-                onClick={() => onOrder(item, quantity)}
+                onClick={() => onOrder(item, quantity, quickPaymentMethod)}
                 disabled={orderingItemId === item._id}
               >
-                {orderingItemId === item._id ? "Placing Order..." : "Order On WhatsApp"}
+                {orderingItemId === item._id ? "Placing Order..." : "Quick Order"}
               </button>
             </>
           ) : (

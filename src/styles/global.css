@@ -930,6 +930,8 @@ textarea { resize: vertical; }
 
 .food-actions {
   margin-top: 1rem;
+  display: grid;
+  gap: 0.55rem;
 }
 
 .qty-row {
@@ -1308,14 +1310,15 @@ button:disabled {
   }
 
   .mobile-nav-drawer {
-    display: grid;
-    grid-template-rows: auto auto 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 0.9rem;
     position: fixed;
     top: 0;
     right: 0;
     width: min(88vw, 340px);
-    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
     background: linear-gradient(180deg, #fff8ef, #f7ecde);
     border-left: 1px solid var(--line);
     box-shadow: -12px 0 30px rgba(0, 0, 0, 0.18);
@@ -1323,6 +1326,7 @@ button:disabled {
     transform: translateX(100%);
     transition: transform 200ms ease;
     padding: 1rem;
+    overflow-y: auto;
   }
 
   .mobile-nav-drawer.open {
@@ -1338,6 +1342,7 @@ button:disabled {
   .mobile-nav-links {
     display: grid;
     gap: 0.55rem;
+    overflow-y: auto;
   }
 
   .mobile-nav-links a {
@@ -1358,6 +1363,10 @@ button:disabled {
     margin-top: auto;
     display: grid;
     gap: 0.6rem;
+    padding-top: 0.7rem;
+    border-top: 1px solid rgba(59, 40, 26, 0.12);
+    background: linear-gradient(180deg, rgba(247, 236, 222, 0), #f7ecde 30%);
+    padding-bottom: calc(0.7rem + env(safe-area-inset-bottom));
   }
 }
 
