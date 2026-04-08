@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useCart } from "../context/CartContext";
 import { loadRazorpaySdk } from "../utils/razorpay";
+import { reverseGeocodeLocation } from "../utils/location";
 
 const adminWhatsapp = (import.meta.env.VITE_ADMIN_WHATSAPP || "916202173133").replace(/\D/g, "");
 const USER_LOCATION_KEY = "saha_food_user_location_city";
@@ -584,36 +585,16 @@ export function HomePage() {
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-          );
-          const data = await response.json();
-          const city =
-            data?.address?.city ||
-            data?.address?.town ||
-            data?.address?.village ||
-            data?.address?.county ||
-            "";
-          const pincode = normalizePincode(data?.address?.postcode || "");
-          const state = data?.address?.state || "";
-
-          if (!city && !pincode) {
+          const location = await reverseGeocodeLocation(latitude, longitude);
+          if (!location.city && !location.pincode) {
             showToast("Unable to detect location details. Please select manually.", "warning");
             return;
           }
-          const area =
-            data?.address?.suburb ||
-            data?.address?.neighbourhood ||
-            data?.address?.city_district ||
-            city ||
-            "";
-          const subtitle = [area, city, state]
-            .filter(Boolean)
-            .filter((value, idx, arr) => arr.indexOf(value) === idx)
-            .join(", ");
-          setSelectedLocationState(state);
-          handleLocationSelect(city, pincode, area, subtitle);
-          showToast(`Location detected: ${area || city || pincode}`, "success");
+          const area = location.area || location.city || "";
+          const subtitle = location.subtitle || [location.area, location.city, location.state].filter(Boolean).join(", ");
+          setSelectedLocationState(location.state || "");
+          handleLocationSelect(location.city, location.pincode, area, subtitle);
+          showToast(`Location detected: ${area || location.city || location.pincode}`, "success");
         } catch (_error) {
           showToast("Could not detect your city. Please select manually.", "warning");
         } finally {

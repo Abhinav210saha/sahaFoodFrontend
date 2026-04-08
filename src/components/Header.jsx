@@ -4,13 +4,12 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import logoMark from "../assets/saha-food-mark.svg";
+import { reverseGeocodeLocation } from "../utils/location";
 
 const USER_LOCATION_KEY = "saha_food_user_location_city";
 const USER_PINCODE_KEY = "saha_food_user_location_pincode";
 const USER_LOCATION_LABEL_KEY = "saha_food_user_location_label";
 const USER_LOCATION_SUBTITLE_KEY = "saha_food_user_location_subtitle";
-
-const normalizePincode = (value) => String(value || "").replace(/\D/g, "");
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -40,30 +39,14 @@ export function Header() {
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-          );
-          const data = await response.json();
-          const address = data?.address || {};
-
-          const locality =
-            address.suburb ||
-            address.neighbourhood ||
-            address.hamlet ||
-            address.quarter ||
-            address.city_district ||
-            "";
-          const city = address.city || address.town || address.village || address.county || "";
-          const state = address.state || "";
-          const pincode = normalizePincode(address.postcode || "");
-
-          const label = locality || city || "Current location";
-          const subtitle = [locality, city, state].filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i).join(", ");
+          const location = await reverseGeocodeLocation(latitude, longitude);
+          const label = location.label || "Current location";
+          const subtitle = location.subtitle || [location.area, location.city, location.state].filter(Boolean).join(", ");
 
           localStorage.setItem(USER_LOCATION_LABEL_KEY, label);
           localStorage.setItem(USER_LOCATION_SUBTITLE_KEY, subtitle);
-          if (city) localStorage.setItem(USER_LOCATION_KEY, city);
-          if (pincode) localStorage.setItem(USER_PINCODE_KEY, pincode);
+          if (location.city) localStorage.setItem(USER_LOCATION_KEY, location.city);
+          if (location.pincode) localStorage.setItem(USER_PINCODE_KEY, location.pincode);
           window.dispatchEvent(new Event("saha-location-updated"));
 
           setLocationLabel(label);
