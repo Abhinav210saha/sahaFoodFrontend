@@ -5,16 +5,108 @@ import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import logoMark from "../assets/saha-food-mark.svg";
 
+const USER_LOCATION_KEY = "saha_food_user_location_city";
+const USER_PINCODE_KEY = "saha_food_user_location_pincode";
+const USER_LOCATION_LABEL_KEY = "saha_food_user_location_label";
+const USER_LOCATION_SUBTITLE_KEY = "saha_food_user_location_subtitle";
+
+const normalizePincode = (value) => String(value || "").replace(/\D/g, "");
+
 export function Header() {
   const { user, logout } = useAuth();
   const { totalItems } = useCart();
   const { pathname } = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [locationLabel, setLocationLabel] = useState("");
+  const [locationSubtitle, setLocationSubtitle] = useState("");
+  const [isLocationLoading, setIsLocationLoading] = useState(false);
   const isAdmin = user?.role === "admin";
+
+  const syncLocationFromStorage = () => {
+    const label = localStorage.getItem(USER_LOCATION_LABEL_KEY) || "";
+    const subtitle = localStorage.getItem(USER_LOCATION_SUBTITLE_KEY) || "";
+    const city = localStorage.getItem(USER_LOCATION_KEY) || "";
+    const pincode = localStorage.getItem(USER_PINCODE_KEY) || "";
+
+    setLocationLabel(label || city || "Set location");
+    setLocationSubtitle(subtitle || [city, pincode].filter(Boolean).join(", "));
+  };
+
+  const fetchCurrentLocation = () => {
+    if (!navigator.geolocation || isLocationLoading) return;
+    setIsLocationLoading(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await response.json();
+          const address = data?.address || {};
+
+          const locality =
+            address.suburb ||
+            address.neighbourhood ||
+            address.hamlet ||
+            address.quarter ||
+            address.city_district ||
+            "";
+          const city = address.city || address.town || address.village || address.county || "";
+          const state = address.state || "";
+          const pincode = normalizePincode(address.postcode || "");
+
+          const label = locality || city || "Current location";
+          const subtitle = [locality, city, state].filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i).join(", ");
+
+          localStorage.setItem(USER_LOCATION_LABEL_KEY, label);
+          localStorage.setItem(USER_LOCATION_SUBTITLE_KEY, subtitle);
+          if (city) localStorage.setItem(USER_LOCATION_KEY, city);
+          if (pincode) localStorage.setItem(USER_PINCODE_KEY, pincode);
+
+          setLocationLabel(label);
+          setLocationSubtitle(subtitle);
+        } catch (_error) {
+          // Keep silent to avoid noisy UI in header.
+        } finally {
+          setIsLocationLoading(false);
+        }
+      },
+      () => {
+        setIsLocationLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   useEffect(() => {
     setIsMenuOpen(false);
+    syncLocationFromStorage();
   }, [pathname]);
+
+  useEffect(() => {
+    syncLocationFromStorage();
+    if (!localStorage.getItem(USER_LOCATION_LABEL_KEY) && !localStorage.getItem(USER_LOCATION_KEY)) {
+      fetchCurrentLocation();
+    }
+
+    const onStorage = (event) => {
+      if (
+        [
+          USER_LOCATION_KEY,
+          USER_PINCODE_KEY,
+          USER_LOCATION_LABEL_KEY,
+          USER_LOCATION_SUBTITLE_KEY,
+        ].includes(event.key)
+      ) {
+        syncLocationFromStorage();
+      }
+    };
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = isMenuOpen ? "hidden" : "";
@@ -33,6 +125,20 @@ export function Header() {
             <small>Cloud Kitchen</small>
           </div>
         </Link>
+
+        <button
+          type="button"
+          className="header-location-chip"
+          onClick={fetchCurrentLocation}
+          title="Use my current location"
+        >
+          <span className="location-title">
+            <span className="pin-icon">&#128205;</span>
+            {isLocationLoading ? "Fetching location..." : (locationLabel || "Set location")}
+            <span className="location-caret">&#9662;</span>
+          </span>
+          <span className="location-subtitle">{locationSubtitle || "Tap to detect your location"}</span>
+        </button>
 
         <nav className="nav-links desktop-nav">
           <NavLink to="/">Home</NavLink>

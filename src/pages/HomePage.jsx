@@ -135,25 +135,47 @@ export function HomePage() {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [checkingLocation, setCheckingLocation] = useState(false);
   const searchBoxRef = useRef(null);
+  const loadDeliveryConfig = async () => {
+    const deliveryData = await api.getDeliveryConfig();
+    setDeliveryConfig({
+      serviceableCities: deliveryData.serviceableCities || [],
+      serviceablePincodes: deliveryData.serviceablePincodes || [],
+      enforceServiceability: Boolean(deliveryData.enforceServiceability),
+      comingSoonMessage: deliveryData.comingSoonMessage || defaultDeliveryConfig.comingSoonMessage,
+    });
+  };
 
   useEffect(() => {
-    Promise.all([api.getBanners(), api.getMenu(), api.getDeliveryConfig()])
-      .then(([bannerData, menuData, deliveryData]) => {
+    Promise.all([api.getBanners(), api.getMenu(), loadDeliveryConfig()])
+      .then(([bannerData, menuData]) => {
         setBanners(bannerData.filter((banner) => banner.isActive));
         const liveMenu = menuData.filter((item) => item.isAvailable);
         setMenu(liveMenu.length ? liveMenu : fallbackMenu);
-        setDeliveryConfig({
-          serviceableCities: deliveryData.serviceableCities || [],
-          serviceablePincodes: deliveryData.serviceablePincodes || [],
-          enforceServiceability: Boolean(deliveryData.enforceServiceability),
-          comingSoonMessage: deliveryData.comingSoonMessage || defaultDeliveryConfig.comingSoonMessage,
-        });
       })
       .catch(() => {
         setFetchError("Live menu unavailable, showing sample items.");
         setMenu(fallbackMenu);
       })
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const syncOnFocus = () => {
+      loadDeliveryConfig().catch(() => {});
+    };
+    const syncOnVisible = () => {
+      if (document.visibilityState === "visible") {
+        syncOnFocus();
+      }
+    };
+
+    window.addEventListener("focus", syncOnFocus);
+    document.addEventListener("visibilitychange", syncOnVisible);
+
+    return () => {
+      window.removeEventListener("focus", syncOnFocus);
+      document.removeEventListener("visibilitychange", syncOnVisible);
+    };
   }, []);
 
   useEffect(() => {

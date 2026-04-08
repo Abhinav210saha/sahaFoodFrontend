@@ -31,22 +31,44 @@ export function CartPage() {
     enforceServiceability: true,
     comingSoonMessage: "We are reaching your area very soon.",
   });
+  const loadDeliveryConfig = async () => {
+    const deliveryData = await api.getDeliveryConfig();
+    setDeliveryConfig({
+      serviceableCities: deliveryData.serviceableCities || [],
+      serviceablePincodes: deliveryData.serviceablePincodes || [],
+      enforceServiceability: Boolean(deliveryData.enforceServiceability),
+      comingSoonMessage: deliveryData.comingSoonMessage || "We are reaching your area very soon.",
+    });
+  };
 
   useEffect(() => {
-    Promise.all([api.getAddresses(token), api.getDeliveryConfig()])
-      .then(([addressData, deliveryData]) => {
+    Promise.all([api.getAddresses(token), loadDeliveryConfig()])
+      .then(([addressData]) => {
         setAddresses(addressData);
         const preferred = addressData.find((address) => address.isDefault) || addressData[0];
         setSelectedAddressId(preferred?._id || "");
-        setDeliveryConfig({
-          serviceableCities: deliveryData.serviceableCities || [],
-          serviceablePincodes: deliveryData.serviceablePincodes || [],
-          enforceServiceability: Boolean(deliveryData.enforceServiceability),
-          comingSoonMessage: deliveryData.comingSoonMessage || "We are reaching your area very soon.",
-        });
       })
       .catch(() => setAddresses([]));
   }, [token]);
+
+  useEffect(() => {
+    const syncOnFocus = () => {
+      loadDeliveryConfig().catch(() => {});
+    };
+    const syncOnVisible = () => {
+      if (document.visibilityState === "visible") {
+        syncOnFocus();
+      }
+    };
+
+    window.addEventListener("focus", syncOnFocus);
+    document.addEventListener("visibilitychange", syncOnVisible);
+
+    return () => {
+      window.removeEventListener("focus", syncOnFocus);
+      document.removeEventListener("visibilitychange", syncOnVisible);
+    };
+  }, []);
 
   const selectedAddress = useMemo(
     () => addresses.find((address) => String(address._id) === String(selectedAddressId)),

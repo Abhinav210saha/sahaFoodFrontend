@@ -53,6 +53,51 @@ img { max-width: 100%; display: block; }
   border-bottom: 1px solid rgba(38, 23, 13, 0.08);
 }
 
+.header-location-chip {
+  min-width: 240px;
+  max-width: 360px;
+  border: 1px solid rgba(203, 95, 45, 0.25);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 0.45rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.18rem;
+  text-align: left;
+}
+
+.location-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #d8193f;
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1.1;
+}
+
+.pin-icon {
+  font-size: 0.95rem;
+}
+
+.location-caret {
+  color: #d8193f;
+  font-size: 0.72rem;
+  margin-left: 0.1rem;
+}
+
+.location-subtitle {
+  color: #2f2520;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  opacity: 0.92;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .brand-mark {
   display: flex;
   align-items: center;
@@ -1356,6 +1401,8 @@ button:disabled {
   }
 
   .site-header {
+    flex-wrap: wrap;
+    align-items: center;
     padding: 0.75rem 1rem;
   }
 
@@ -1366,6 +1413,13 @@ button:disabled {
 
   .hamburger-toggle {
     display: inline-flex;
+    margin-left: auto;
+  }
+
+  .header-location-chip {
+    order: 3;
+    width: 100%;
+    max-width: none;
   }
 
   .mobile-nav-overlay {
@@ -1474,6 +1528,14 @@ button:disabled {
 
   .brand-mark small {
     font-size: 0.82rem;
+  }
+
+  .location-title {
+    font-size: 0.94rem;
+  }
+
+  .location-subtitle {
+    font-size: 0.83rem;
   }
 
   .hero-copy h1 { font-size: 2.6rem; }
