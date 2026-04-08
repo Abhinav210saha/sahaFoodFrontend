@@ -131,10 +131,14 @@ export const api = {
       headers: buildHeaders(token),
       body: JSON.stringify({ amount }),
     }),
-  getDeliveryConfig: () => request("/delivery/public"),
+  getDeliveryConfig: () =>
+    request(`/delivery/public?ts=${Date.now()}`, {
+      cache: "no-store",
+    }),
   getDeliveryConfigAdmin: (token) =>
-    request("/delivery/admin", {
+    request(`/delivery/admin?ts=${Date.now()}`, {
       headers: buildHeaders(token),
+      cache: "no-store",
     }),
   updateDeliveryConfig: (payload, token) =>
     request("/delivery/admin", {
