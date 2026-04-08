@@ -9,6 +9,7 @@ import { loadRazorpaySdk } from "../utils/razorpay";
 
 const adminWhatsapp = (import.meta.env.VITE_ADMIN_WHATSAPP || "916202173133").replace(/\D/g, "");
 const USER_LOCATION_KEY = "saha_food_user_location_city";
+const USER_PINCODE_KEY = "saha_food_user_location_pincode";
 
 const fallbackMenu = [
   {
@@ -101,11 +102,13 @@ const formatAddress = (address) =>
 const RECENT_SEARCHES_KEY = "saha_food_recent_searches";
 const defaultDeliveryConfig = {
   serviceableCities: [],
+  serviceablePincodes: [],
   enforceServiceability: true,
   comingSoonMessage: "We are reaching your area very soon.",
 };
 
 const normalizeCity = (value) => String(value || "").trim().toLowerCase();
+const normalizePincode = (value) => String(value || "").replace(/\D/g, "");
 
 export function HomePage() {
   const { user, token } = useAuth();
@@ -128,6 +131,7 @@ export function HomePage() {
   const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
   const [deliveryConfig, setDeliveryConfig] = useState(defaultDeliveryConfig);
   const [selectedLocationCity, setSelectedLocationCity] = useState("");
+  const [selectedLocationPincode, setSelectedLocationPincode] = useState("");
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [checkingLocation, setCheckingLocation] = useState(false);
   const searchBoxRef = useRef(null);
@@ -140,6 +144,7 @@ export function HomePage() {
         setMenu(liveMenu.length ? liveMenu : fallbackMenu);
         setDeliveryConfig({
           serviceableCities: deliveryData.serviceableCities || [],
+          serviceablePincodes: deliveryData.serviceablePincodes || [],
           enforceServiceability: Boolean(deliveryData.enforceServiceability),
           comingSoonMessage: deliveryData.comingSoonMessage || defaultDeliveryConfig.comingSoonMessage,
         });
@@ -153,9 +158,14 @@ export function HomePage() {
 
   useEffect(() => {
     const savedLocation = localStorage.getItem(USER_LOCATION_KEY) || "";
+    const savedPincode = localStorage.getItem(USER_PINCODE_KEY) || "";
     if (savedLocation) {
       setSelectedLocationCity(savedLocation);
-    } else {
+    }
+    if (savedPincode) {
+      setSelectedLocationPincode(savedPincode);
+    }
+    if (!savedLocation && !savedPincode) {
       setShowLocationPicker(true);
     }
   }, []);
@@ -255,12 +265,19 @@ export function HomePage() {
   const selectedAddress = addresses.find((address) => String(address._id) === String(selectedAddressId));
 
   useEffect(() => {
-    if (!selectedLocationCity && selectedAddress?.city) {
+    if (!selectedAddress) return;
+
+    if (!selectedLocationCity && selectedAddress.city) {
       const city = selectedAddress.city.trim();
       setSelectedLocationCity(city);
       localStorage.setItem(USER_LOCATION_KEY, city);
     }
-  }, [selectedAddress, selectedLocationCity]);
+    if (!selectedLocationPincode && selectedAddress.pincode) {
+      const pincode = normalizePincode(selectedAddress.pincode);
+      setSelectedLocationPincode(pincode);
+      localStorage.setItem(USER_PINCODE_KEY, pincode);
+    }
+  }, [selectedAddress, selectedLocationCity, selectedLocationPincode]);
 
   const featuredForHero = featuredItems[0] || menu[0];
   const heroImageSrc =
@@ -268,9 +285,16 @@ export function HomePage() {
     (!loading ? featuredForHero?.image : "");
 
   const normalizedLocation = normalizeCity(selectedLocationCity);
+  const normalizedUserPincode = normalizePincode(selectedLocationPincode);
   const normalizedServiceableCities = (deliveryConfig.serviceableCities || []).map(normalizeCity);
-  const hasCoverageRules = deliveryConfig.enforceServiceability && normalizedServiceableCities.length > 0;
-  const isServiceable = !hasCoverageRules || !selectedLocationCity || normalizedServiceableCities.includes(normalizedLocation);
+  const normalizedServiceablePincodes = (deliveryConfig.serviceablePincodes || []).map(normalizePincode);
+  const hasCoverageRules = deliveryConfig.enforceServiceability;
+  const hasPincodeRules = hasCoverageRules && normalizedServiceablePincodes.length > 0;
+  const hasCityRules = hasCoverageRules && normalizedServiceableCities.length > 0;
+  const isServiceable = !hasCoverageRules
+    || (!hasPincodeRules && !hasCityRules)
+    || (hasPincodeRules && Boolean(normalizedUserPincode) && normalizedServiceablePincodes.includes(normalizedUserPincode))
+    || (!hasPincodeRules && hasCityRules && Boolean(normalizedLocation) && normalizedServiceableCities.includes(normalizedLocation));
   const orderBlockedReason = deliveryConfig.comingSoonMessage || "We are reaching your area very soon.";
   const locationOptions = Array.from(
     new Set([
@@ -304,7 +328,7 @@ export function HomePage() {
   };
 
   const handleOrder = async (item, quantity, quickPaymentMethod) => {
-    if (!selectedLocationCity) {
+    if (!selectedLocationCity && !selectedLocationPincode) {
       setShowLocationPicker(true);
       showToast("Please select your location to continue.", "warning");
       return;
@@ -406,7 +430,7 @@ export function HomePage() {
   };
 
   const handleAddToCart = (item, quantity) => {
-    if (!selectedLocationCity) {
+    if (!selectedLocationCity && !selectedLocationPincode) {
       setShowLocationPicker(true);
       showToast("Please select your location to continue.", "warning");
       return;
@@ -449,14 +473,17 @@ export function HomePage() {
     localStorage.removeItem(RECENT_SEARCHES_KEY);
   };
 
-  const handleLocationSelect = (city) => {
+  const handleLocationSelect = (city, pincode) => {
     const cleanCity = String(city || "").trim();
-    if (!cleanCity) {
-      showToast("Please select a city to continue.", "warning");
+    const cleanPincode = normalizePincode(pincode);
+    if (!cleanCity && !cleanPincode) {
+      showToast("Please select city or enter pincode.", "warning");
       return;
     }
     setSelectedLocationCity(cleanCity);
-    localStorage.setItem(USER_LOCATION_KEY, cleanCity);
+    setSelectedLocationPincode(cleanPincode);
+    if (cleanCity) localStorage.setItem(USER_LOCATION_KEY, cleanCity);
+    if (cleanPincode) localStorage.setItem(USER_PINCODE_KEY, cleanPincode);
     setShowLocationPicker(false);
   };
 
@@ -481,13 +508,14 @@ export function HomePage() {
             data?.address?.village ||
             data?.address?.county ||
             "";
+          const pincode = normalizePincode(data?.address?.postcode || "");
 
-          if (!city) {
-            showToast("Unable to detect city. Please select manually.", "warning");
+          if (!city && !pincode) {
+            showToast("Unable to detect location details. Please select manually.", "warning");
             return;
           }
-          handleLocationSelect(city);
-          showToast(`Location detected: ${city}`, "success");
+          handleLocationSelect(city, pincode);
+          showToast(`Location detected: ${city || pincode}`, "success");
         } catch (_error) {
           showToast("Could not detect your city. Please select manually.", "warning");
         } finally {
@@ -549,17 +577,18 @@ export function HomePage() {
       <section className="location-strip">
         <div>
           <p className="eyebrow">Delivery location</p>
-          <h3>{selectedLocationCity || "Set your location"}</h3>
+          <h3>{selectedLocationCity || selectedLocationPincode || "Set your location"}</h3>
           <p>
             {isServiceable
               ? "Great news. We deliver in this area."
               : deliveryConfig.comingSoonMessage || "We are reaching your area very soon."}
           </p>
+          {selectedLocationPincode ? <p className="helper-text">Pincode: {selectedLocationPincode}</p> : null}
         </div>
         <div className="address-actions">
           <select
             value={selectedLocationCity}
-            onChange={(event) => handleLocationSelect(event.target.value)}
+            onChange={(event) => setSelectedLocationCity(event.target.value)}
             className="address-select"
           >
             <option value="">Select city</option>
@@ -569,6 +598,15 @@ export function HomePage() {
               </option>
             ))}
           </select>
+          <input
+            className="address-select"
+            placeholder="Enter pincode"
+            value={selectedLocationPincode}
+            onChange={(event) => setSelectedLocationPincode(normalizePincode(event.target.value))}
+          />
+          <button type="button" className="primary-button" onClick={() => handleLocationSelect(selectedLocationCity, selectedLocationPincode)}>
+            Apply
+          </button>
           <button type="button" className="ghost-button" onClick={useMyLocation} disabled={checkingLocation}>
             {checkingLocation ? "Detecting..." : "Use my location"}
           </button>
@@ -578,10 +616,10 @@ export function HomePage() {
         </div>
       </section>
 
-      {!isServiceable && selectedLocationCity && (
+      {!isServiceable && (selectedLocationCity || selectedLocationPincode) && (
         <section className="coming-soon-banner">
           <p className="eyebrow">Not delivering here yet</p>
-          <h2>We will reach {selectedLocationCity} very soon</h2>
+          <h2>We will reach {selectedLocationCity || selectedLocationPincode} very soon</h2>
           <p>{deliveryConfig.comingSoonMessage || "Our team is expanding quickly to your area."}</p>
         </section>
       )}
@@ -794,10 +832,10 @@ export function HomePage() {
                 onOrder={handleOrder}
                 onAddToCart={handleAddToCart}
                 orderingItemId={orderingItemId}
-                canOrder={isServiceable && Boolean(selectedLocationCity)}
+                canOrder={isServiceable && Boolean(selectedLocationCity || selectedLocationPincode)}
                 orderBlockedReason={
-                  !selectedLocationCity
-                    ? "Please select your location first."
+                  !(selectedLocationCity || selectedLocationPincode)
+                    ? "Please select city or pincode first."
                     : orderBlockedReason
                 }
               />
@@ -813,7 +851,7 @@ export function HomePage() {
           <div className="location-modal-card">
             <p className="eyebrow">Choose location</p>
             <h3>Where should we deliver?</h3>
-            <p>Select your city to check if Saha Food is available in your area.</p>
+            <p>Select your city or pincode to check if Saha Food is available in your area.</p>
             <select
               className="address-select"
               value={selectedLocationCity}
@@ -826,8 +864,14 @@ export function HomePage() {
                 </option>
               ))}
             </select>
+            <input
+              className="address-select"
+              placeholder="Enter pincode"
+              value={selectedLocationPincode}
+              onChange={(event) => setSelectedLocationPincode(normalizePincode(event.target.value))}
+            />
             <div className="hero-actions">
-              <button type="button" className="primary-button" onClick={() => handleLocationSelect(selectedLocationCity)}>
+              <button type="button" className="primary-button" onClick={() => handleLocationSelect(selectedLocationCity, selectedLocationPincode)}>
                 Continue
               </button>
               <button type="button" className="ghost-button" onClick={useMyLocation} disabled={checkingLocation}>

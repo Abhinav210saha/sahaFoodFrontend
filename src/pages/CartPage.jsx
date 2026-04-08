@@ -8,6 +8,7 @@ import { loadRazorpaySdk } from "../utils/razorpay";
 
 const adminWhatsapp = (import.meta.env.VITE_ADMIN_WHATSAPP || "916202173133").replace(/\D/g, "");
 const normalizeCity = (value) => String(value || "").trim().toLowerCase();
+const normalizePincode = (value) => String(value || "").replace(/\D/g, "");
 
 const formatAddress = (address) =>
   [address.line1, address.line2, `${address.city}, ${address.state} - ${address.pincode}`, address.landmark]
@@ -26,6 +27,7 @@ export function CartPage() {
   const [placing, setPlacing] = useState(false);
   const [deliveryConfig, setDeliveryConfig] = useState({
     serviceableCities: [],
+    serviceablePincodes: [],
     enforceServiceability: true,
     comingSoonMessage: "We are reaching your area very soon.",
   });
@@ -38,6 +40,7 @@ export function CartPage() {
         setSelectedAddressId(preferred?._id || "");
         setDeliveryConfig({
           serviceableCities: deliveryData.serviceableCities || [],
+          serviceablePincodes: deliveryData.serviceablePincodes || [],
           enforceServiceability: Boolean(deliveryData.enforceServiceability),
           comingSoonMessage: deliveryData.comingSoonMessage || "We are reaching your area very soon.",
         });
@@ -51,11 +54,15 @@ export function CartPage() {
   );
   const hasAddresses = addresses.length > 0;
   const normalizedServiceableCities = (deliveryConfig.serviceableCities || []).map(normalizeCity);
+  const normalizedServiceablePincodes = (deliveryConfig.serviceablePincodes || []).map(normalizePincode);
+  const selectedPincode = normalizePincode(selectedAddress?.pincode);
+  const hasPincodeRules = deliveryConfig.enforceServiceability && normalizedServiceablePincodes.length > 0;
+  const hasCityRules = deliveryConfig.enforceServiceability && normalizedServiceableCities.length > 0;
   const isAddressServiceable =
     !deliveryConfig.enforceServiceability ||
-    normalizedServiceableCities.length === 0 ||
-    !selectedAddress?.city ||
-    normalizedServiceableCities.includes(normalizeCity(selectedAddress.city));
+    (!hasPincodeRules && !hasCityRules) ||
+    (hasPincodeRules && Boolean(selectedPincode) && normalizedServiceablePincodes.includes(selectedPincode)) ||
+    (!hasPincodeRules && hasCityRules && Boolean(selectedAddress?.city) && normalizedServiceableCities.includes(normalizeCity(selectedAddress.city)));
   const canPlaceOrder =
     items.length > 0 &&
     Boolean(selectedAddressId) &&

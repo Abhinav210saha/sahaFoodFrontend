@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
     const raw = localStorage.getItem(storageKey);
     return raw ? JSON.parse(raw) : { token: "", user: null };
   });
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(auth));
@@ -29,21 +30,39 @@ export function AuthProvider({ children }) {
   const logout = () => setAuth({ token: "", user: null });
   const setUser = (user) => setAuth((prev) => ({ ...prev, user }));
 
-  const refreshProfile = async () => {
-    if (!auth.token) return;
-    const user = await api.profile(auth.token);
-    setAuth((prev) => ({ ...prev, user }));
+  const refreshProfile = async (tokenOverride) => {
+    const tokenToUse = tokenOverride || auth.token;
+    if (!tokenToUse) return;
+    const user = await api.profile(tokenToUse);
+    setAuth((prev) => ({ ...prev, user, token: tokenToUse }));
   };
 
   useEffect(() => {
-    if (auth.token && !auth.user) {
-      refreshProfile().catch(logout);
+    let isMounted = true;
+
+    if (!auth.token) {
+      setAuthReady(true);
+      return () => {
+        isMounted = false;
+      };
     }
-  }, []);
+
+    refreshProfile(auth.token)
+      .catch(() => {
+        if (isMounted) logout();
+      })
+      .finally(() => {
+        if (isMounted) setAuthReady(true);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [auth.token]);
 
   const value = useMemo(
-    () => ({ ...auth, login, register, logout, refreshProfile, setUser }),
-    [auth]
+    () => ({ ...auth, authReady, login, register, logout, refreshProfile, setUser }),
+    [auth, authReady]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
