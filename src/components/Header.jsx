@@ -64,6 +64,7 @@ export function Header() {
           localStorage.setItem(USER_LOCATION_SUBTITLE_KEY, subtitle);
           if (city) localStorage.setItem(USER_LOCATION_KEY, city);
           if (pincode) localStorage.setItem(USER_PINCODE_KEY, pincode);
+          window.dispatchEvent(new Event("saha-location-updated"));
 
           setLocationLabel(label);
           setLocationSubtitle(subtitle);

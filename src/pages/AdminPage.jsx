@@ -36,8 +36,16 @@ const defaultBannerForm = {
 const defaultDeliveryConfig = {
   serviceableCities: [],
   serviceablePincodes: [],
+  serviceableZones: [],
   enforceServiceability: true,
   comingSoonMessage: "We are reaching your area very soon.",
+};
+
+const defaultZoneForm = {
+  state: "",
+  city: "",
+  area: "",
+  pincodes: "",
 };
 
 const ORDER_STATUS_OPTIONS = ["placed", "preparing", "out_for_delivery", "delivered", "cancelled"];
@@ -71,6 +79,7 @@ export function AdminPage() {
   const [bannerImagePreview, setBannerImagePreview] = useState("");
   const [activeWorkspace, setActiveWorkspace] = useState("overview");
   const [deliveryConfig, setDeliveryConfig] = useState(defaultDeliveryConfig);
+  const [zoneForm, setZoneForm] = useState(defaultZoneForm);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -89,6 +98,7 @@ export function AdminPage() {
     setDeliveryConfig({
       serviceableCities: deliveryData.serviceableCities || [],
       serviceablePincodes: deliveryData.serviceablePincodes || [],
+      serviceableZones: Array.isArray(deliveryData.serviceableZones) ? deliveryData.serviceableZones : [],
       enforceServiceability: Boolean(deliveryData.enforceServiceability),
       comingSoonMessage: deliveryData.comingSoonMessage || defaultDeliveryConfig.comingSoonMessage,
     });
@@ -284,6 +294,18 @@ export function AdminPage() {
         ...deliveryConfig,
         serviceableCities: (deliveryConfig.serviceableCities || []).filter(Boolean),
         serviceablePincodes: (deliveryConfig.serviceablePincodes || []).filter(Boolean),
+        serviceableZones: (deliveryConfig.serviceableZones || [])
+          .map((zone) => ({
+            ...zone,
+            state: String(zone.state || "").trim(),
+            city: String(zone.city || "").trim(),
+            area: String(zone.area || "").trim(),
+            pincodes: Array.isArray(zone.pincodes)
+              ? zone.pincodes.map((code) => String(code || "").replace(/\D/g, "")).filter(Boolean)
+              : [],
+            isActive: zone.isActive !== false,
+          }))
+          .filter((zone) => zone.state || zone.city || zone.area || zone.pincodes.length > 0),
       };
       await api.updateDeliveryConfig(payload, token);
       setMessage("Delivery locations updated successfully.");
@@ -291,6 +313,32 @@ export function AdminPage() {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const addServiceZone = () => {
+    const nextZone = {
+      state: zoneForm.state.trim(),
+      city: zoneForm.city.trim(),
+      area: zoneForm.area.trim(),
+      pincodes: zoneForm.pincodes
+        .split(/[\n,]/)
+        .map((code) => code.replace(/\D/g, ""))
+        .filter(Boolean),
+      isActive: true,
+    };
+    if (!nextZone.state && !nextZone.city && !nextZone.area && nextZone.pincodes.length === 0) return;
+    setDeliveryConfig((prev) => ({
+      ...prev,
+      serviceableZones: [...(prev.serviceableZones || []), nextZone],
+    }));
+    setZoneForm(defaultZoneForm);
+  };
+
+  const removeServiceZone = (index) => {
+    setDeliveryConfig((prev) => ({
+      ...prev,
+      serviceableZones: (prev.serviceableZones || []).filter((_, idx) => idx !== index),
+    }));
   };
 
   return (
@@ -490,6 +538,44 @@ export function AdminPage() {
                 placeholder={"110001\n500075\n122001"}
               />
             </label>
+            <div className="menu-upload-preview">
+              <p className="helper-text"><strong>Area wise delivery zones</strong></p>
+              <div className="profile-address-grid">
+                <label>
+                  State
+                  <input
+                    value={zoneForm.state}
+                    onChange={(e) => setZoneForm((prev) => ({ ...prev, state: e.target.value }))}
+                    placeholder="Telangana"
+                  />
+                </label>
+                <label>
+                  City
+                  <input
+                    value={zoneForm.city}
+                    onChange={(e) => setZoneForm((prev) => ({ ...prev, city: e.target.value }))}
+                    placeholder="Hyderabad"
+                  />
+                </label>
+                <label>
+                  Area / Locality
+                  <input
+                    value={zoneForm.area}
+                    onChange={(e) => setZoneForm((prev) => ({ ...prev, area: e.target.value }))}
+                    placeholder="Kokapet, Madhapur, Hitech City"
+                  />
+                </label>
+                <label>
+                  Zone pincodes (comma separated)
+                  <input
+                    value={zoneForm.pincodes}
+                    onChange={(e) => setZoneForm((prev) => ({ ...prev, pincodes: e.target.value }))}
+                    placeholder="500075, 500081"
+                  />
+                </label>
+              </div>
+              <button type="button" className="ghost-button" onClick={addServiceZone}>Add service zone</button>
+            </div>
             <label>
               Out-of-range message
               <input
@@ -529,6 +615,25 @@ export function AdminPage() {
                     <span key={code} className="timeline-step done">{code}</span>
                   ))}
                 </div>
+              </>
+            ) : null}
+            {(deliveryConfig.serviceableZones || []).length ? (
+              <>
+                <p className="helper-text" style={{ marginTop: "0.7rem" }}>Serviceable area zones</p>
+                {(deliveryConfig.serviceableZones || []).map((zone, index) => (
+                  <article key={`${zone.state}-${zone.city}-${zone.area}-${index}`} className="manage-row">
+                    <div>
+                      <strong>{zone.area || "Area not set"}</strong>
+                      <p>{[zone.city, zone.state].filter(Boolean).join(", ") || "City/State not set"}</p>
+                      <p className="helper-text">
+                        {(zone.pincodes || []).length ? `Pincodes: ${zone.pincodes.join(", ")}` : "No pincode restriction in this zone"}
+                      </p>
+                    </div>
+                    <div className="row-actions">
+                      <button type="button" className="text-button danger" onClick={() => removeServiceZone(index)}>Remove</button>
+                    </div>
+                  </article>
+                ))}
               </>
             ) : null}
           </div>

@@ -10,6 +10,8 @@ import { loadRazorpaySdk } from "../utils/razorpay";
 const adminWhatsapp = (import.meta.env.VITE_ADMIN_WHATSAPP || "916202173133").replace(/\D/g, "");
 const USER_LOCATION_KEY = "saha_food_user_location_city";
 const USER_PINCODE_KEY = "saha_food_user_location_pincode";
+const USER_LOCATION_LABEL_KEY = "saha_food_user_location_label";
+const USER_LOCATION_SUBTITLE_KEY = "saha_food_user_location_subtitle";
 
 const fallbackMenu = [
   {
@@ -103,12 +105,48 @@ const RECENT_SEARCHES_KEY = "saha_food_recent_searches";
 const defaultDeliveryConfig = {
   serviceableCities: [],
   serviceablePincodes: [],
+  serviceableZones: [],
   enforceServiceability: true,
   comingSoonMessage: "We are reaching your area very soon.",
 };
 
 const normalizeCity = (value) => String(value || "").trim().toLowerCase();
 const normalizePincode = (value) => String(value || "").replace(/\D/g, "");
+const normalizeText = (value) => String(value || "").trim().toLowerCase();
+
+const isServiceableByConfig = (config, location) => {
+  if (!config?.enforceServiceability) return true;
+
+  const zoneRules = Array.isArray(config.serviceableZones) ? config.serviceableZones.filter((zone) => zone?.isActive !== false) : [];
+  const pincodeRules = Array.isArray(config.serviceablePincodes) ? config.serviceablePincodes.map(normalizePincode).filter(Boolean) : [];
+  const cityRules = Array.isArray(config.serviceableCities) ? config.serviceableCities.map(normalizeText).filter(Boolean) : [];
+
+  const locationState = normalizeText(location.state);
+  const locationCity = normalizeText(location.city);
+  const locationArea = normalizeText(location.area);
+  const locationPincode = normalizePincode(location.pincode);
+  const searchable = [location.area, location.city, location.subtitle, location.label].map(normalizeText).filter(Boolean).join(" ");
+
+  if (!zoneRules.length && !pincodeRules.length && !cityRules.length) return true;
+
+  if (zoneRules.length) {
+    return zoneRules.some((zone) => {
+      const zoneState = normalizeText(zone.state);
+      const zoneCity = normalizeText(zone.city);
+      const zoneArea = normalizeText(zone.area);
+      const zonePincodes = Array.isArray(zone.pincodes) ? zone.pincodes.map(normalizePincode).filter(Boolean) : [];
+      const stateOk = !zoneState || zoneState === locationState;
+      const cityOk = !zoneCity || zoneCity === locationCity;
+      const areaOk = !zoneArea || searchable.includes(zoneArea);
+      const pincodeOk = zonePincodes.length === 0 || zonePincodes.includes(locationPincode);
+      return stateOk && cityOk && areaOk && pincodeOk;
+    });
+  }
+
+  if (pincodeRules.length) return pincodeRules.includes(locationPincode);
+  if (cityRules.length) return cityRules.includes(locationCity);
+  return true;
+};
 
 export function HomePage() {
   const { user, token } = useAuth();
@@ -132,14 +170,37 @@ export function HomePage() {
   const [deliveryConfig, setDeliveryConfig] = useState(defaultDeliveryConfig);
   const [selectedLocationCity, setSelectedLocationCity] = useState("");
   const [selectedLocationPincode, setSelectedLocationPincode] = useState("");
+  const [selectedLocationArea, setSelectedLocationArea] = useState("");
+  const [selectedLocationState, setSelectedLocationState] = useState("");
+  const [selectedLocationSubtitle, setSelectedLocationSubtitle] = useState("");
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [checkingLocation, setCheckingLocation] = useState(false);
   const searchBoxRef = useRef(null);
+  const syncLocationFromStorage = () => {
+    const savedLocation = localStorage.getItem(USER_LOCATION_KEY) || "";
+    const savedPincode = localStorage.getItem(USER_PINCODE_KEY) || "";
+    const savedArea = localStorage.getItem(USER_LOCATION_LABEL_KEY) || "";
+    const savedSubtitle = localStorage.getItem(USER_LOCATION_SUBTITLE_KEY) || "";
+
+    if (savedLocation) setSelectedLocationCity(savedLocation);
+    if (savedPincode) setSelectedLocationPincode(savedPincode);
+    if (savedArea) setSelectedLocationArea(savedArea);
+    if (savedSubtitle) {
+      setSelectedLocationSubtitle(savedSubtitle);
+      const state = savedSubtitle.split(",").map((part) => part.trim()).filter(Boolean).pop() || "";
+      if (state) setSelectedLocationState(state);
+    }
+
+    if (!savedLocation && !savedPincode) {
+      setShowLocationPicker(true);
+    }
+  };
   const loadDeliveryConfig = async () => {
     const deliveryData = await api.getDeliveryConfig();
     setDeliveryConfig({
       serviceableCities: deliveryData.serviceableCities || [],
       serviceablePincodes: deliveryData.serviceablePincodes || [],
+      serviceableZones: deliveryData.serviceableZones || [],
       enforceServiceability: Boolean(deliveryData.enforceServiceability),
       comingSoonMessage: deliveryData.comingSoonMessage || defaultDeliveryConfig.comingSoonMessage,
     });
@@ -179,17 +240,11 @@ export function HomePage() {
   }, []);
 
   useEffect(() => {
-    const savedLocation = localStorage.getItem(USER_LOCATION_KEY) || "";
-    const savedPincode = localStorage.getItem(USER_PINCODE_KEY) || "";
-    if (savedLocation) {
-      setSelectedLocationCity(savedLocation);
-    }
-    if (savedPincode) {
-      setSelectedLocationPincode(savedPincode);
-    }
-    if (!savedLocation && !savedPincode) {
-      setShowLocationPicker(true);
-    }
+    syncLocationFromStorage();
+
+    const onLocationUpdate = () => syncLocationFromStorage();
+    window.addEventListener("saha-location-updated", onLocationUpdate);
+    return () => window.removeEventListener("saha-location-updated", onLocationUpdate);
   }, []);
 
   useEffect(() => {
@@ -299,6 +354,9 @@ export function HomePage() {
       setSelectedLocationPincode(pincode);
       localStorage.setItem(USER_PINCODE_KEY, pincode);
     }
+    if (!selectedLocationState && selectedAddress.state) {
+      setSelectedLocationState(selectedAddress.state);
+    }
   }, [selectedAddress, selectedLocationCity, selectedLocationPincode]);
 
   const featuredForHero = featuredItems[0] || menu[0];
@@ -306,17 +364,14 @@ export function HomePage() {
     heroBanner?.image ||
     (!loading ? featuredForHero?.image : "");
 
-  const normalizedLocation = normalizeCity(selectedLocationCity);
-  const normalizedUserPincode = normalizePincode(selectedLocationPincode);
-  const normalizedServiceableCities = (deliveryConfig.serviceableCities || []).map(normalizeCity);
-  const normalizedServiceablePincodes = (deliveryConfig.serviceablePincodes || []).map(normalizePincode);
-  const hasCoverageRules = deliveryConfig.enforceServiceability;
-  const hasPincodeRules = hasCoverageRules && normalizedServiceablePincodes.length > 0;
-  const hasCityRules = hasCoverageRules && normalizedServiceableCities.length > 0;
-  const isServiceable = !hasCoverageRules
-    || (!hasPincodeRules && !hasCityRules)
-    || (hasPincodeRules && Boolean(normalizedUserPincode) && normalizedServiceablePincodes.includes(normalizedUserPincode))
-    || (!hasPincodeRules && hasCityRules && Boolean(normalizedLocation) && normalizedServiceableCities.includes(normalizedLocation));
+  const isServiceable = isServiceableByConfig(deliveryConfig, {
+    state: selectedLocationState || selectedAddress?.state,
+    city: selectedLocationCity || selectedAddress?.city,
+    area: selectedLocationArea || selectedAddress?.landmark || selectedAddress?.line2 || selectedAddress?.line1,
+    pincode: selectedLocationPincode || selectedAddress?.pincode,
+    label: selectedLocationArea,
+    subtitle: selectedLocationSubtitle,
+  });
   const orderBlockedReason = deliveryConfig.comingSoonMessage || "We are reaching your area very soon.";
   const locationOptions = Array.from(
     new Set([
@@ -495,17 +550,26 @@ export function HomePage() {
     localStorage.removeItem(RECENT_SEARCHES_KEY);
   };
 
-  const handleLocationSelect = (city, pincode) => {
+  const handleLocationSelect = (city, pincode, area = selectedLocationArea, subtitle = selectedLocationSubtitle) => {
     const cleanCity = String(city || "").trim();
     const cleanPincode = normalizePincode(pincode);
+    const cleanArea = String(area || "").trim();
+    const cleanSubtitle = String(subtitle || "").trim();
     if (!cleanCity && !cleanPincode) {
       showToast("Please select city or enter pincode.", "warning");
       return;
     }
     setSelectedLocationCity(cleanCity);
     setSelectedLocationPincode(cleanPincode);
+    setSelectedLocationArea(cleanArea);
+    setSelectedLocationSubtitle(cleanSubtitle);
+    const derivedState = cleanSubtitle.split(",").map((part) => part.trim()).filter(Boolean).pop() || selectedLocationState;
+    setSelectedLocationState(derivedState);
     if (cleanCity) localStorage.setItem(USER_LOCATION_KEY, cleanCity);
     if (cleanPincode) localStorage.setItem(USER_PINCODE_KEY, cleanPincode);
+    if (cleanArea) localStorage.setItem(USER_LOCATION_LABEL_KEY, cleanArea);
+    if (cleanSubtitle) localStorage.setItem(USER_LOCATION_SUBTITLE_KEY, cleanSubtitle);
+    window.dispatchEvent(new Event("saha-location-updated"));
     setShowLocationPicker(false);
   };
 
@@ -531,13 +595,25 @@ export function HomePage() {
             data?.address?.county ||
             "";
           const pincode = normalizePincode(data?.address?.postcode || "");
+          const state = data?.address?.state || "";
 
           if (!city && !pincode) {
             showToast("Unable to detect location details. Please select manually.", "warning");
             return;
           }
-          handleLocationSelect(city, pincode);
-          showToast(`Location detected: ${city || pincode}`, "success");
+          const area =
+            data?.address?.suburb ||
+            data?.address?.neighbourhood ||
+            data?.address?.city_district ||
+            city ||
+            "";
+          const subtitle = [area, city, state]
+            .filter(Boolean)
+            .filter((value, idx, arr) => arr.indexOf(value) === idx)
+            .join(", ");
+          setSelectedLocationState(state);
+          handleLocationSelect(city, pincode, area, subtitle);
+          showToast(`Location detected: ${area || city || pincode}`, "success");
         } catch (_error) {
           showToast("Could not detect your city. Please select manually.", "warning");
         } finally {
@@ -599,12 +675,13 @@ export function HomePage() {
       <section className="location-strip">
         <div>
           <p className="eyebrow">Delivery location</p>
-          <h3>{selectedLocationCity || selectedLocationPincode || "Set your location"}</h3>
+          <h3>{selectedLocationArea || selectedLocationCity || selectedLocationPincode || "Set your location"}</h3>
           <p>
             {isServiceable
               ? "Great news. We deliver in this area."
               : deliveryConfig.comingSoonMessage || "We are reaching your area very soon."}
           </p>
+          {selectedLocationSubtitle ? <p className="helper-text">{selectedLocationSubtitle}</p> : null}
           {selectedLocationPincode ? <p className="helper-text">Pincode: {selectedLocationPincode}</p> : null}
         </div>
         <div className="address-actions">
@@ -620,13 +697,13 @@ export function HomePage() {
               </option>
             ))}
           </select>
-          <input
-            className="address-select"
-            placeholder="Enter pincode"
-            value={selectedLocationPincode}
-            onChange={(event) => setSelectedLocationPincode(normalizePincode(event.target.value))}
-          />
-          <button type="button" className="primary-button" onClick={() => handleLocationSelect(selectedLocationCity, selectedLocationPincode)}>
+            <input
+              className="address-select"
+              placeholder="Enter pincode"
+              value={selectedLocationPincode}
+              onChange={(event) => setSelectedLocationPincode(normalizePincode(event.target.value))}
+            />
+          <button type="button" className="primary-button" onClick={() => handleLocationSelect(selectedLocationCity, selectedLocationPincode, selectedLocationArea, selectedLocationSubtitle)}>
             Apply
           </button>
           <button type="button" className="ghost-button" onClick={useMyLocation} disabled={checkingLocation}>
@@ -641,7 +718,7 @@ export function HomePage() {
       {!isServiceable && (selectedLocationCity || selectedLocationPincode) && (
         <section className="coming-soon-banner">
           <p className="eyebrow">Not delivering here yet</p>
-          <h2>We will reach {selectedLocationCity || selectedLocationPincode} very soon</h2>
+          <h2>We will reach {selectedLocationArea || selectedLocationCity || selectedLocationPincode} very soon</h2>
           <p>{deliveryConfig.comingSoonMessage || "Our team is expanding quickly to your area."}</p>
         </section>
       )}
@@ -888,12 +965,18 @@ export function HomePage() {
             </select>
             <input
               className="address-select"
+              placeholder="Area / locality"
+              value={selectedLocationArea}
+              onChange={(event) => setSelectedLocationArea(event.target.value)}
+            />
+            <input
+              className="address-select"
               placeholder="Enter pincode"
               value={selectedLocationPincode}
               onChange={(event) => setSelectedLocationPincode(normalizePincode(event.target.value))}
             />
             <div className="hero-actions">
-              <button type="button" className="primary-button" onClick={() => handleLocationSelect(selectedLocationCity, selectedLocationPincode)}>
+              <button type="button" className="primary-button" onClick={() => handleLocationSelect(selectedLocationCity, selectedLocationPincode, selectedLocationArea, selectedLocationSubtitle)}>
                 Continue
               </button>
               <button type="button" className="ghost-button" onClick={useMyLocation} disabled={checkingLocation}>

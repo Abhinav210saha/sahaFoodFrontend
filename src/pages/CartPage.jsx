@@ -9,6 +9,43 @@ import { loadRazorpaySdk } from "../utils/razorpay";
 const adminWhatsapp = (import.meta.env.VITE_ADMIN_WHATSAPP || "916202173133").replace(/\D/g, "");
 const normalizeCity = (value) => String(value || "").trim().toLowerCase();
 const normalizePincode = (value) => String(value || "").replace(/\D/g, "");
+const normalizeText = (value) => String(value || "").trim().toLowerCase();
+
+const isAddressServiceableByConfig = (config, address) => {
+  if (!config?.enforceServiceability) return true;
+
+  const zoneRules = Array.isArray(config.serviceableZones) ? config.serviceableZones.filter((zone) => zone?.isActive !== false) : [];
+  const pincodeRules = Array.isArray(config.serviceablePincodes) ? config.serviceablePincodes.map(normalizePincode).filter(Boolean) : [];
+  const cityRules = Array.isArray(config.serviceableCities) ? config.serviceableCities.map(normalizeText).filter(Boolean) : [];
+
+  const state = normalizeText(address?.state);
+  const city = normalizeText(address?.city);
+  const pincode = normalizePincode(address?.pincode);
+  const searchable = [address?.line1, address?.line2, address?.landmark, address?.label]
+    .map(normalizeText)
+    .filter(Boolean)
+    .join(" ");
+
+  if (!zoneRules.length && !pincodeRules.length && !cityRules.length) return true;
+
+  if (zoneRules.length) {
+    return zoneRules.some((zone) => {
+      const zoneState = normalizeText(zone.state);
+      const zoneCity = normalizeText(zone.city);
+      const zoneArea = normalizeText(zone.area);
+      const zonePincodes = Array.isArray(zone.pincodes) ? zone.pincodes.map(normalizePincode).filter(Boolean) : [];
+      const stateOk = !zoneState || zoneState === state;
+      const cityOk = !zoneCity || zoneCity === city;
+      const areaOk = !zoneArea || searchable.includes(zoneArea);
+      const pincodeOk = zonePincodes.length === 0 || zonePincodes.includes(pincode);
+      return stateOk && cityOk && areaOk && pincodeOk;
+    });
+  }
+
+  if (pincodeRules.length) return pincodeRules.includes(pincode);
+  if (cityRules.length) return cityRules.includes(city);
+  return true;
+};
 
 const formatAddress = (address) =>
   [address.line1, address.line2, `${address.city}, ${address.state} - ${address.pincode}`, address.landmark]
@@ -28,6 +65,7 @@ export function CartPage() {
   const [deliveryConfig, setDeliveryConfig] = useState({
     serviceableCities: [],
     serviceablePincodes: [],
+    serviceableZones: [],
     enforceServiceability: true,
     comingSoonMessage: "We are reaching your area very soon.",
   });
@@ -36,6 +74,7 @@ export function CartPage() {
     setDeliveryConfig({
       serviceableCities: deliveryData.serviceableCities || [],
       serviceablePincodes: deliveryData.serviceablePincodes || [],
+      serviceableZones: deliveryData.serviceableZones || [],
       enforceServiceability: Boolean(deliveryData.enforceServiceability),
       comingSoonMessage: deliveryData.comingSoonMessage || "We are reaching your area very soon.",
     });
@@ -75,16 +114,7 @@ export function CartPage() {
     [addresses, selectedAddressId]
   );
   const hasAddresses = addresses.length > 0;
-  const normalizedServiceableCities = (deliveryConfig.serviceableCities || []).map(normalizeCity);
-  const normalizedServiceablePincodes = (deliveryConfig.serviceablePincodes || []).map(normalizePincode);
-  const selectedPincode = normalizePincode(selectedAddress?.pincode);
-  const hasPincodeRules = deliveryConfig.enforceServiceability && normalizedServiceablePincodes.length > 0;
-  const hasCityRules = deliveryConfig.enforceServiceability && normalizedServiceableCities.length > 0;
-  const isAddressServiceable =
-    !deliveryConfig.enforceServiceability ||
-    (!hasPincodeRules && !hasCityRules) ||
-    (hasPincodeRules && Boolean(selectedPincode) && normalizedServiceablePincodes.includes(selectedPincode)) ||
-    (!hasPincodeRules && hasCityRules && Boolean(selectedAddress?.city) && normalizedServiceableCities.includes(normalizeCity(selectedAddress.city)));
+  const isAddressServiceable = isAddressServiceableByConfig(deliveryConfig, selectedAddress);
   const canPlaceOrder =
     items.length > 0 &&
     Boolean(selectedAddressId) &&
