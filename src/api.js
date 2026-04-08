@@ -131,6 +131,17 @@ export const api = {
       headers: buildHeaders(token),
       body: JSON.stringify({ amount }),
     }),
+  getDeliveryConfig: () => request("/delivery/public"),
+  getDeliveryConfigAdmin: (token) =>
+    request("/delivery/admin", {
+      headers: buildHeaders(token),
+    }),
+  updateDeliveryConfig: (payload, token) =>
+    request("/delivery/admin", {
+      method: "PUT",
+      headers: buildHeaders(token),
+      body: JSON.stringify(payload),
+    }),
   verifyPayment: (payload, token) =>
     request("/payments/verify", {
       method: "POST",

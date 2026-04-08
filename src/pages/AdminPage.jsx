@@ -33,6 +33,12 @@ const defaultBannerForm = {
   endsAt: "",
 };
 
+const defaultDeliveryConfig = {
+  serviceableCities: [],
+  enforceServiceability: true,
+  comingSoonMessage: "We are reaching your area very soon.",
+};
+
 const ORDER_STATUS_OPTIONS = ["placed", "preparing", "out_for_delivery", "delivered", "cancelled"];
 
 const toDateTimeInputValue = (value) => {
@@ -63,20 +69,27 @@ export function AdminPage() {
   const [bannerImageFile, setBannerImageFile] = useState(null);
   const [bannerImagePreview, setBannerImagePreview] = useState("");
   const [activeWorkspace, setActiveWorkspace] = useState("overview");
+  const [deliveryConfig, setDeliveryConfig] = useState(defaultDeliveryConfig);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   const loadData = async () => {
-    const [menuData, bannerData, orderData, dashboardData] = await Promise.all([
+    const [menuData, bannerData, orderData, dashboardData, deliveryData] = await Promise.all([
       api.getMenu(),
       api.getBanners(true),
       api.getAllOrders(token),
       api.getAdminDashboard(token),
+      api.getDeliveryConfigAdmin(token),
     ]);
     setMenu(menuData);
     setBanners(bannerData);
     setOrders(orderData);
     setDashboard(dashboardData);
+    setDeliveryConfig({
+      serviceableCities: deliveryData.serviceableCities || [],
+      enforceServiceability: Boolean(deliveryData.enforceServiceability),
+      comingSoonMessage: deliveryData.comingSoonMessage || defaultDeliveryConfig.comingSoonMessage,
+    });
   };
 
   useEffect(() => {
@@ -260,6 +273,23 @@ export function AdminPage() {
     }
   };
 
+  const saveDeliveryConfig = async (event) => {
+    event.preventDefault();
+    setMessage("");
+    setError("");
+    try {
+      const payload = {
+        ...deliveryConfig,
+        serviceableCities: (deliveryConfig.serviceableCities || []).filter(Boolean),
+      };
+      await api.updateDeliveryConfig(payload, token);
+      setMessage("Delivery locations updated successfully.");
+      await loadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <main className="page-shell admin-page">
       <section className="admin-hero">
@@ -285,6 +315,7 @@ export function AdminPage() {
         <button type="button" className={activeWorkspace === "overview" ? "active" : ""} onClick={() => setActiveWorkspace("overview")}>Overview</button>
         <button type="button" className={activeWorkspace === "menu" ? "active" : ""} onClick={() => setActiveWorkspace("menu")}>Menu</button>
         <button type="button" className={activeWorkspace === "banners" ? "active" : ""} onClick={() => setActiveWorkspace("banners")}>Banners</button>
+        <button type="button" className={activeWorkspace === "delivery" ? "active" : ""} onClick={() => setActiveWorkspace("delivery")}>Delivery</button>
         <button type="button" className={activeWorkspace === "orders" ? "active" : ""} onClick={() => setActiveWorkspace("orders")}>Orders</button>
       </section>
 
@@ -401,6 +432,77 @@ export function AdminPage() {
             </div>
           </section>
         </>
+      )}
+
+      {activeWorkspace === "delivery" && (
+        <section className="admin-grid">
+          <form className="admin-card stack-form" onSubmit={saveDeliveryConfig}>
+            <div className="card-heading">
+              <h2>Delivery coverage settings</h2>
+            </div>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={deliveryConfig.enforceServiceability}
+                onChange={(e) =>
+                  setDeliveryConfig((prev) => ({
+                    ...prev,
+                    enforceServiceability: e.target.checked,
+                  }))
+                }
+              />
+              Restrict delivery to selected locations
+            </label>
+            <label>
+              Serviceable locations (one per line or comma separated)
+              <textarea
+                rows="5"
+                value={(deliveryConfig.serviceableCities || []).join("\n")}
+                onChange={(e) =>
+                  setDeliveryConfig((prev) => ({
+                    ...prev,
+                    serviceableCities: e.target.value
+                      .split(/[\n,]/)
+                      .map((city) => city.trim())
+                      .filter(Boolean),
+                  }))
+                }
+                placeholder={"Noida\nDelhi\nGurugram"}
+              />
+            </label>
+            <label>
+              Out-of-range message
+              <input
+                value={deliveryConfig.comingSoonMessage}
+                onChange={(e) =>
+                  setDeliveryConfig((prev) => ({
+                    ...prev,
+                    comingSoonMessage: e.target.value,
+                  }))
+                }
+                placeholder="We are reaching your area very soon."
+              />
+            </label>
+            <button className="primary-button wide-button">Save delivery settings</button>
+          </form>
+          <div className="admin-list-card">
+            <div className="card-heading"><h2>Current coverage preview</h2></div>
+            <p className="helper-text">
+              {deliveryConfig.enforceServiceability
+                ? "Delivery is restricted to selected cities."
+                : "Delivery is currently open for all locations."}
+            </p>
+            {(deliveryConfig.serviceableCities || []).length ? (
+              <div className="order-timeline">
+                {deliveryConfig.serviceableCities.map((city) => (
+                  <span key={city} className="timeline-step done">{city}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="helper-text">No locations added yet.</p>
+            )}
+          </div>
+        </section>
       )}
 
       {activeWorkspace === "orders" && (

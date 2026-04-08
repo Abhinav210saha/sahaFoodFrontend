@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
 import { useState } from "react";
-export function FoodCard({ item, user, onOrder, onAddToCart, orderingItemId }) {
+import { Link } from "react-router-dom";
+
+export function FoodCard({ item, user, onOrder, onAddToCart, orderingItemId, canOrder = true, orderBlockedReason = "" }) {
   const [quantity, setQuantity] = useState(1);
   const [quickPaymentMethod, setQuickPaymentMethod] = useState("cod");
 
@@ -48,6 +49,8 @@ export function FoodCard({ item, user, onOrder, onAddToCart, orderingItemId }) {
                 type="button"
                 className="ghost-button order-button"
                 onClick={() => onAddToCart(item, quantity)}
+                disabled={!canOrder}
+                title={!canOrder ? orderBlockedReason : ""}
               >
                 Add To Cart
               </button>
@@ -55,7 +58,8 @@ export function FoodCard({ item, user, onOrder, onAddToCart, orderingItemId }) {
                 type="button"
                 className="primary-button order-button"
                 onClick={() => onOrder(item, quantity, quickPaymentMethod)}
-                disabled={orderingItemId === item._id}
+                disabled={!canOrder || orderingItemId === item._id}
+                title={!canOrder ? orderBlockedReason : ""}
               >
                 {orderingItemId === item._id ? "Placing Order..." : "Quick Order"}
               </button>

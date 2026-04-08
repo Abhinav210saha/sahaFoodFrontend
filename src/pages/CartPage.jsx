@@ -7,6 +7,7 @@ import { useToast } from "../context/ToastContext";
 import { loadRazorpaySdk } from "../utils/razorpay";
 
 const adminWhatsapp = (import.meta.env.VITE_ADMIN_WHATSAPP || "916202173133").replace(/\D/g, "");
+const normalizeCity = (value) => String(value || "").trim().toLowerCase();
 
 const formatAddress = (address) =>
   [address.line1, address.line2, `${address.city}, ${address.state} - ${address.pincode}`, address.landmark]
@@ -23,14 +24,23 @@ export function CartPage() {
   const [scheduledFor, setScheduledFor] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [placing, setPlacing] = useState(false);
+  const [deliveryConfig, setDeliveryConfig] = useState({
+    serviceableCities: [],
+    enforceServiceability: true,
+    comingSoonMessage: "We are reaching your area very soon.",
+  });
 
   useEffect(() => {
-    api
-      .getAddresses(token)
-      .then((data) => {
-        setAddresses(data);
-        const preferred = data.find((address) => address.isDefault) || data[0];
+    Promise.all([api.getAddresses(token), api.getDeliveryConfig()])
+      .then(([addressData, deliveryData]) => {
+        setAddresses(addressData);
+        const preferred = addressData.find((address) => address.isDefault) || addressData[0];
         setSelectedAddressId(preferred?._id || "");
+        setDeliveryConfig({
+          serviceableCities: deliveryData.serviceableCities || [],
+          enforceServiceability: Boolean(deliveryData.enforceServiceability),
+          comingSoonMessage: deliveryData.comingSoonMessage || "We are reaching your area very soon.",
+        });
       })
       .catch(() => setAddresses([]));
   }, [token]);
@@ -40,9 +50,16 @@ export function CartPage() {
     [addresses, selectedAddressId]
   );
   const hasAddresses = addresses.length > 0;
+  const normalizedServiceableCities = (deliveryConfig.serviceableCities || []).map(normalizeCity);
+  const isAddressServiceable =
+    !deliveryConfig.enforceServiceability ||
+    normalizedServiceableCities.length === 0 ||
+    !selectedAddress?.city ||
+    normalizedServiceableCities.includes(normalizeCity(selectedAddress.city));
   const canPlaceOrder =
     items.length > 0 &&
     Boolean(selectedAddressId) &&
+    isAddressServiceable &&
     (deliverySlotType !== "scheduled" || Boolean(scheduledFor)) &&
     !placing;
 
@@ -53,6 +70,10 @@ export function CartPage() {
     }
     if (!selectedAddressId) {
       showToast("Please select an address before checkout.", "warning");
+      return;
+    }
+    if (!isAddressServiceable) {
+      showToast(deliveryConfig.comingSoonMessage || "We are reaching your area very soon.", "warning");
       return;
     }
     if (deliverySlotType === "scheduled" && !scheduledFor) {
@@ -222,6 +243,9 @@ export function CartPage() {
             </label>
           )}
           <p className="helper-text">{selectedAddress ? formatAddress(selectedAddress) : "No address selected"}</p>
+          {selectedAddress && !isAddressServiceable && (
+            <p className="error-text">{deliveryConfig.comingSoonMessage || "We are reaching your area very soon."}</p>
+          )}
           {hasAddresses && <Link className="text-button" to="/profile">Manage addresses</Link>}
           <p><strong>Total: Rs.{totalAmount}</strong></p>
           <button type="button" className="primary-button wide-button" disabled={!canPlaceOrder} onClick={placeCartOrder}>

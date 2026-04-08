@@ -8,6 +8,7 @@ import { useCart } from "../context/CartContext";
 import { loadRazorpaySdk } from "../utils/razorpay";
 
 const adminWhatsapp = (import.meta.env.VITE_ADMIN_WHATSAPP || "916202173133").replace(/\D/g, "");
+const USER_LOCATION_KEY = "saha_food_user_location_city";
 
 const fallbackMenu = [
   {
@@ -98,6 +99,13 @@ const formatAddress = (address) =>
     .join(", ");
 
 const RECENT_SEARCHES_KEY = "saha_food_recent_searches";
+const defaultDeliveryConfig = {
+  serviceableCities: [],
+  enforceServiceability: true,
+  comingSoonMessage: "We are reaching your area very soon.",
+};
+
+const normalizeCity = (value) => String(value || "").trim().toLowerCase();
 
 export function HomePage() {
   const { user, token } = useAuth();
@@ -118,20 +126,38 @@ export function HomePage() {
   const [recentSearches, setRecentSearches] = useState([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
+  const [deliveryConfig, setDeliveryConfig] = useState(defaultDeliveryConfig);
+  const [selectedLocationCity, setSelectedLocationCity] = useState("");
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [checkingLocation, setCheckingLocation] = useState(false);
   const searchBoxRef = useRef(null);
 
   useEffect(() => {
-    Promise.all([api.getBanners(), api.getMenu()])
-      .then(([bannerData, menuData]) => {
+    Promise.all([api.getBanners(), api.getMenu(), api.getDeliveryConfig()])
+      .then(([bannerData, menuData, deliveryData]) => {
         setBanners(bannerData.filter((banner) => banner.isActive));
         const liveMenu = menuData.filter((item) => item.isAvailable);
         setMenu(liveMenu.length ? liveMenu : fallbackMenu);
+        setDeliveryConfig({
+          serviceableCities: deliveryData.serviceableCities || [],
+          enforceServiceability: Boolean(deliveryData.enforceServiceability),
+          comingSoonMessage: deliveryData.comingSoonMessage || defaultDeliveryConfig.comingSoonMessage,
+        });
       })
       .catch(() => {
         setFetchError("Live menu unavailable, showing sample items.");
         setMenu(fallbackMenu);
       })
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const savedLocation = localStorage.getItem(USER_LOCATION_KEY) || "";
+    if (savedLocation) {
+      setSelectedLocationCity(savedLocation);
+    } else {
+      setShowLocationPicker(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -227,10 +253,32 @@ export function HomePage() {
   const heroBanner = banners[0];
 
   const selectedAddress = addresses.find((address) => String(address._id) === String(selectedAddressId));
+
+  useEffect(() => {
+    if (!selectedLocationCity && selectedAddress?.city) {
+      const city = selectedAddress.city.trim();
+      setSelectedLocationCity(city);
+      localStorage.setItem(USER_LOCATION_KEY, city);
+    }
+  }, [selectedAddress, selectedLocationCity]);
+
   const featuredForHero = featuredItems[0] || menu[0];
   const heroImageSrc =
     heroBanner?.image ||
     (!loading ? featuredForHero?.image : "");
+
+  const normalizedLocation = normalizeCity(selectedLocationCity);
+  const normalizedServiceableCities = (deliveryConfig.serviceableCities || []).map(normalizeCity);
+  const hasCoverageRules = deliveryConfig.enforceServiceability && normalizedServiceableCities.length > 0;
+  const isServiceable = !hasCoverageRules || !selectedLocationCity || normalizedServiceableCities.includes(normalizedLocation);
+  const orderBlockedReason = deliveryConfig.comingSoonMessage || "We are reaching your area very soon.";
+  const locationOptions = Array.from(
+    new Set([
+      ...(deliveryConfig.serviceableCities || []),
+      ...addresses.map((address) => address.city).filter(Boolean),
+      selectedLocationCity,
+    ].filter(Boolean))
+  );
 
   const handleBannerClick = (banner) => {
     if (banner.targetCategory) {
@@ -256,6 +304,15 @@ export function HomePage() {
   };
 
   const handleOrder = async (item, quantity, quickPaymentMethod) => {
+    if (!selectedLocationCity) {
+      setShowLocationPicker(true);
+      showToast("Please select your location to continue.", "warning");
+      return;
+    }
+    if (!isServiceable) {
+      showToast(orderBlockedReason, "warning");
+      return;
+    }
     if (!selectedAddressId) {
       showToast("Please add/select an address before placing order.", "warning");
       return;
@@ -349,6 +406,15 @@ export function HomePage() {
   };
 
   const handleAddToCart = (item, quantity) => {
+    if (!selectedLocationCity) {
+      setShowLocationPicker(true);
+      showToast("Please select your location to continue.", "warning");
+      return;
+    }
+    if (!isServiceable) {
+      showToast(orderBlockedReason, "warning");
+      return;
+    }
     addToCart(
       {
         ...item,
@@ -381,6 +447,59 @@ export function HomePage() {
   const clearRecentSearches = () => {
     setRecentSearches([]);
     localStorage.removeItem(RECENT_SEARCHES_KEY);
+  };
+
+  const handleLocationSelect = (city) => {
+    const cleanCity = String(city || "").trim();
+    if (!cleanCity) {
+      showToast("Please select a city to continue.", "warning");
+      return;
+    }
+    setSelectedLocationCity(cleanCity);
+    localStorage.setItem(USER_LOCATION_KEY, cleanCity);
+    setShowLocationPicker(false);
+  };
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) {
+      showToast("Location is not supported on this browser.", "error");
+      return;
+    }
+
+    setCheckingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await response.json();
+          const city =
+            data?.address?.city ||
+            data?.address?.town ||
+            data?.address?.village ||
+            data?.address?.county ||
+            "";
+
+          if (!city) {
+            showToast("Unable to detect city. Please select manually.", "warning");
+            return;
+          }
+          handleLocationSelect(city);
+          showToast(`Location detected: ${city}`, "success");
+        } catch (_error) {
+          showToast("Could not detect your city. Please select manually.", "warning");
+        } finally {
+          setCheckingLocation(false);
+        }
+      },
+      () => {
+        setCheckingLocation(false);
+        showToast("Location permission denied. Please select manually.", "warning");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   return (
@@ -426,6 +545,46 @@ export function HomePage() {
           </div>
         </div>
       </section>
+
+      <section className="location-strip">
+        <div>
+          <p className="eyebrow">Delivery location</p>
+          <h3>{selectedLocationCity || "Set your location"}</h3>
+          <p>
+            {isServiceable
+              ? "Great news. We deliver in this area."
+              : deliveryConfig.comingSoonMessage || "We are reaching your area very soon."}
+          </p>
+        </div>
+        <div className="address-actions">
+          <select
+            value={selectedLocationCity}
+            onChange={(event) => handleLocationSelect(event.target.value)}
+            className="address-select"
+          >
+            <option value="">Select city</option>
+            {locationOptions.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="ghost-button" onClick={useMyLocation} disabled={checkingLocation}>
+            {checkingLocation ? "Detecting..." : "Use my location"}
+          </button>
+          <button type="button" className="text-button" onClick={() => setShowLocationPicker(true)}>
+            Change
+          </button>
+        </div>
+      </section>
+
+      {!isServiceable && selectedLocationCity && (
+        <section className="coming-soon-banner">
+          <p className="eyebrow">Not delivering here yet</p>
+          <h2>We will reach {selectedLocationCity} very soon</h2>
+          <p>{deliveryConfig.comingSoonMessage || "Our team is expanding quickly to your area."}</p>
+        </section>
+      )}
 
       <section className="promo-strip">
         {banners.slice(0, 2).map((banner) => (
@@ -635,6 +794,12 @@ export function HomePage() {
                 onOrder={handleOrder}
                 onAddToCart={handleAddToCart}
                 orderingItemId={orderingItemId}
+                canOrder={isServiceable && Boolean(selectedLocationCity)}
+                orderBlockedReason={
+                  !selectedLocationCity
+                    ? "Please select your location first."
+                    : orderBlockedReason
+                }
               />
             ))}
           </div>
@@ -642,6 +807,36 @@ export function HomePage() {
           <p>No items found. Please ask admin to add menu items.</p>
         )}
       </section>
+
+      {showLocationPicker && (
+        <div className="location-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="location-modal-card">
+            <p className="eyebrow">Choose location</p>
+            <h3>Where should we deliver?</h3>
+            <p>Select your city to check if Saha Food is available in your area.</p>
+            <select
+              className="address-select"
+              value={selectedLocationCity}
+              onChange={(event) => setSelectedLocationCity(event.target.value)}
+            >
+              <option value="">Select city</option>
+              {locationOptions.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
+            <div className="hero-actions">
+              <button type="button" className="primary-button" onClick={() => handleLocationSelect(selectedLocationCity)}>
+                Continue
+              </button>
+              <button type="button" className="ghost-button" onClick={useMyLocation} disabled={checkingLocation}>
+                {checkingLocation ? "Detecting..." : "Use my location"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
