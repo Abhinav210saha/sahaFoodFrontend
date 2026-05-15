@@ -34,10 +34,7 @@ const defaultBannerForm = {
 };
 
 const defaultDeliveryConfig = {
-  serviceableCities: [],
-  serviceablePincodes: [],
   serviceableZones: [],
-  enforceServiceability: true,
   comingSoonMessage: "We are reaching your area very soon.",
 };
 
@@ -96,10 +93,7 @@ export function AdminPage() {
     setOrders(orderData);
     setDashboard(dashboardData);
     setDeliveryConfig({
-      serviceableCities: deliveryData.serviceableCities || [],
-      serviceablePincodes: deliveryData.serviceablePincodes || [],
       serviceableZones: Array.isArray(deliveryData.serviceableZones) ? deliveryData.serviceableZones : [],
-      enforceServiceability: Boolean(deliveryData.enforceServiceability),
       comingSoonMessage: deliveryData.comingSoonMessage || defaultDeliveryConfig.comingSoonMessage,
     });
   };
@@ -292,8 +286,6 @@ export function AdminPage() {
     try {
       const payload = {
         ...deliveryConfig,
-        serviceableCities: (deliveryConfig.serviceableCities || []).filter(Boolean),
-        serviceablePincodes: (deliveryConfig.serviceablePincodes || []).filter(Boolean),
         serviceableZones: (deliveryConfig.serviceableZones || [])
           .map((zone) => ({
             ...zone,
@@ -491,53 +483,6 @@ export function AdminPage() {
             <div className="card-heading">
               <h2>Delivery coverage settings</h2>
             </div>
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={deliveryConfig.enforceServiceability}
-                onChange={(e) =>
-                  setDeliveryConfig((prev) => ({
-                    ...prev,
-                    enforceServiceability: e.target.checked,
-                  }))
-                }
-              />
-              Restrict delivery to selected locations
-            </label>
-            <label>
-              Serviceable locations (one per line or comma separated)
-              <textarea
-                rows="5"
-                value={(deliveryConfig.serviceableCities || []).join("\n")}
-                onChange={(e) =>
-                  setDeliveryConfig((prev) => ({
-                    ...prev,
-                    serviceableCities: e.target.value
-                      .split(/[\n,]/)
-                      .map((city) => city.trim())
-                      .filter(Boolean),
-                  }))
-                }
-                placeholder={"Noida\nDelhi\nGurugram"}
-              />
-            </label>
-            <label>
-              Serviceable pincodes (one per line or comma separated)
-              <textarea
-                rows="4"
-                value={(deliveryConfig.serviceablePincodes || []).join("\n")}
-                onChange={(e) =>
-                  setDeliveryConfig((prev) => ({
-                    ...prev,
-                    serviceablePincodes: e.target.value
-                      .split(/[\n,]/)
-                      .map((code) => code.replace(/\D/g, ""))
-                      .filter(Boolean),
-                  }))
-                }
-                placeholder={"110001\n500075\n122001"}
-              />
-            </label>
             <div className="menu-upload-preview">
               <p className="helper-text"><strong>Area wise delivery zones</strong></p>
               <div className="profile-address-grid">
@@ -593,30 +538,7 @@ export function AdminPage() {
           </form>
           <div className="admin-list-card">
             <div className="card-heading"><h2>Current coverage preview</h2></div>
-            <p className="helper-text">
-              {deliveryConfig.enforceServiceability
-                ? "Delivery is restricted to selected zones (pincode/city)."
-                : "Delivery is currently open for all locations."}
-            </p>
-            {(deliveryConfig.serviceableCities || []).length ? (
-              <div className="order-timeline">
-                {deliveryConfig.serviceableCities.map((city) => (
-                  <span key={city} className="timeline-step done">{city}</span>
-                ))}
-              </div>
-            ) : (
-              <p className="helper-text">No locations added yet.</p>
-            )}
-            {(deliveryConfig.serviceablePincodes || []).length ? (
-              <>
-                <p className="helper-text" style={{ marginTop: "0.7rem" }}>Serviceable pincodes</p>
-                <div className="order-timeline">
-                  {deliveryConfig.serviceablePincodes.map((code) => (
-                    <span key={code} className="timeline-step done">{code}</span>
-                  ))}
-                </div>
-              </>
-            ) : null}
+            <p className="helper-text">Delivery is restricted to selected zones only.</p>
             {(deliveryConfig.serviceableZones || []).length ? (
               <>
                 <p className="helper-text" style={{ marginTop: "0.7rem" }}>Serviceable area zones</p>
@@ -635,7 +557,7 @@ export function AdminPage() {
                   </article>
                 ))}
               </>
-            ) : null}
+            ) : <p className="helper-text">No service zones added yet.</p>}
           </div>
         </section>
       )}

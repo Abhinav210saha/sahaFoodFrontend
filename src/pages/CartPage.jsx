@@ -7,16 +7,11 @@ import { useToast } from "../context/ToastContext";
 import { loadRazorpaySdk } from "../utils/razorpay";
 
 const adminWhatsapp = (import.meta.env.VITE_ADMIN_WHATSAPP || "916202173133").replace(/\D/g, "");
-const normalizeCity = (value) => String(value || "").trim().toLowerCase();
 const normalizePincode = (value) => String(value || "").replace(/\D/g, "");
 const normalizeText = (value) => String(value || "").trim().toLowerCase();
 
 const isAddressServiceableByConfig = (config, address) => {
-  if (!config?.enforceServiceability) return true;
-
   const zoneRules = Array.isArray(config.serviceableZones) ? config.serviceableZones.filter((zone) => zone?.isActive !== false) : [];
-  const pincodeRules = Array.isArray(config.serviceablePincodes) ? config.serviceablePincodes.map(normalizePincode).filter(Boolean) : [];
-  const cityRules = Array.isArray(config.serviceableCities) ? config.serviceableCities.map(normalizeText).filter(Boolean) : [];
 
   const state = normalizeText(address?.state);
   const city = normalizeText(address?.city);
@@ -26,25 +21,17 @@ const isAddressServiceableByConfig = (config, address) => {
     .filter(Boolean)
     .join(" ");
 
-  if (!zoneRules.length && !pincodeRules.length && !cityRules.length) return true;
-
-  if (zoneRules.length) {
-    return zoneRules.some((zone) => {
-      const zoneState = normalizeText(zone.state);
-      const zoneCity = normalizeText(zone.city);
-      const zoneArea = normalizeText(zone.area);
-      const zonePincodes = Array.isArray(zone.pincodes) ? zone.pincodes.map(normalizePincode).filter(Boolean) : [];
-      const stateOk = !zoneState || zoneState === state;
-      const cityOk = !zoneCity || zoneCity === city;
-      const areaOk = !zoneArea || searchable.includes(zoneArea);
-      const pincodeOk = zonePincodes.length === 0 || zonePincodes.includes(pincode);
-      return stateOk && cityOk && areaOk && pincodeOk;
-    });
-  }
-
-  if (pincodeRules.length) return pincodeRules.includes(pincode);
-  if (cityRules.length) return cityRules.includes(city);
-  return true;
+  if (!zoneRules.length) return true;
+  return zoneRules.some((zone) => {
+    const zoneState = normalizeText(zone.state);
+    const zoneCity = normalizeText(zone.city);
+    const zoneArea = normalizeText(zone.area);
+    const zonePincodes = Array.isArray(zone.pincodes) ? zone.pincodes.map(normalizePincode).filter(Boolean) : [];
+    if (zoneState !== state || zoneCity !== city) return false;
+    const areaMatched = zoneArea && searchable.includes(zoneArea);
+    const pincodeMatched = zonePincodes.length > 0 && zonePincodes.includes(pincode);
+    return areaMatched || pincodeMatched;
+  });
 };
 
 const formatAddress = (address) =>
@@ -63,19 +50,13 @@ export function CartPage() {
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [placing, setPlacing] = useState(false);
   const [deliveryConfig, setDeliveryConfig] = useState({
-    serviceableCities: [],
-    serviceablePincodes: [],
     serviceableZones: [],
-    enforceServiceability: true,
     comingSoonMessage: "We are reaching your area very soon.",
   });
   const loadDeliveryConfig = async () => {
     const deliveryData = await api.getDeliveryConfig();
     setDeliveryConfig({
-      serviceableCities: deliveryData.serviceableCities || [],
-      serviceablePincodes: deliveryData.serviceablePincodes || [],
       serviceableZones: deliveryData.serviceableZones || [],
-      enforceServiceability: Boolean(deliveryData.enforceServiceability),
       comingSoonMessage: deliveryData.comingSoonMessage || "We are reaching your area very soon.",
     });
   };
