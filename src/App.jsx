@@ -13,6 +13,7 @@ import { CartPage } from "./pages/CartPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { OrderNotificationsBridge } from "./components/OrderNotificationsBridge";
 import { PushNotificationsBridge } from "./components/PushNotificationsBridge";
+import { MobileBottomNav } from "./components/MobileBottomNav";
 
 function App() {
   const { user } = useAuth();
@@ -62,6 +63,7 @@ function App() {
           />
         </Routes>
       </div>
+      <MobileBottomNav />
       <Footer />
     </div>
   );

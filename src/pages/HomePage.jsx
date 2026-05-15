@@ -7,12 +7,14 @@ import { useToast } from "../context/ToastContext";
 import { useCart } from "../context/CartContext";
 import { loadRazorpaySdk } from "../utils/razorpay";
 import { reverseGeocodeLocation } from "../utils/location";
+import { Capacitor } from "@capacitor/core";
 
 const adminWhatsapp = (import.meta.env.VITE_ADMIN_WHATSAPP || "916202173133").replace(/\D/g, "");
 const USER_LOCATION_KEY = "saha_food_user_location_city";
 const USER_PINCODE_KEY = "saha_food_user_location_pincode";
 const USER_LOCATION_LABEL_KEY = "saha_food_user_location_label";
 const USER_LOCATION_SUBTITLE_KEY = "saha_food_user_location_subtitle";
+const LOCATION_PERMISSION_ASKED_KEY = "saha_food_location_permission_asked";
 
 const fallbackMenu = [
   {
@@ -119,16 +121,16 @@ const isServiceableByConfig = (config, location) => {
   const locationPincode = normalizePincode(location.pincode);
   const searchable = [location.area, location.city, location.subtitle, location.label].map(normalizeText).filter(Boolean).join(" ");
 
-  if (!zoneRules.length) return true;
+  if (!zoneRules.length) return false;
   return zoneRules.some((zone) => {
     const zoneState = normalizeText(zone.state);
     const zoneCity = normalizeText(zone.city);
     const zoneArea = normalizeText(zone.area);
     const zonePincodes = Array.isArray(zone.pincodes) ? zone.pincodes.map(normalizePincode).filter(Boolean) : [];
-    if (zoneState !== locationState || zoneCity !== locationCity) return false;
-    const areaMatched = zoneArea && searchable.includes(zoneArea);
     const pincodeMatched = zonePincodes.length > 0 && zonePincodes.includes(locationPincode);
-    return areaMatched || pincodeMatched;
+    if (pincodeMatched) return true;
+    if (zoneState !== locationState || zoneCity !== locationCity) return false;
+    return Boolean(zoneArea && searchable.includes(zoneArea));
   });
 };
 
@@ -226,6 +228,14 @@ export function HomePage() {
     const onLocationUpdate = () => syncLocationFromStorage();
     window.addEventListener("saha-location-updated", onLocationUpdate);
     return () => window.removeEventListener("saha-location-updated", onLocationUpdate);
+  }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    if (sessionStorage.getItem(LOCATION_PERMISSION_ASKED_KEY) === "true") return;
+
+    sessionStorage.setItem(LOCATION_PERMISSION_ASKED_KEY, "true");
+    useMyLocation();
   }, []);
 
   useEffect(() => {
@@ -584,6 +594,7 @@ export function HomePage() {
       () => {
         setCheckingLocation(false);
         showToast("Location permission denied. Please select manually.", "warning");
+        setShowLocationPicker(true);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );

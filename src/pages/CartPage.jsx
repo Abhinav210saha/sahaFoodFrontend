@@ -21,16 +21,16 @@ const isAddressServiceableByConfig = (config, address) => {
     .filter(Boolean)
     .join(" ");
 
-  if (!zoneRules.length) return true;
+  if (!zoneRules.length) return false;
   return zoneRules.some((zone) => {
     const zoneState = normalizeText(zone.state);
     const zoneCity = normalizeText(zone.city);
     const zoneArea = normalizeText(zone.area);
     const zonePincodes = Array.isArray(zone.pincodes) ? zone.pincodes.map(normalizePincode).filter(Boolean) : [];
-    if (zoneState !== state || zoneCity !== city) return false;
-    const areaMatched = zoneArea && searchable.includes(zoneArea);
     const pincodeMatched = zonePincodes.length > 0 && zonePincodes.includes(pincode);
-    return areaMatched || pincodeMatched;
+    if (pincodeMatched) return true;
+    if (zoneState !== state || zoneCity !== city) return false;
+    return Boolean(zoneArea && searchable.includes(zoneArea));
   });
 };
 

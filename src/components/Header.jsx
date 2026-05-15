@@ -3,6 +3,7 @@ import { Link, NavLink } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import { useToast } from "../context/ToastContext";
 import logoMark from "../assets/saha-food-mark.svg";
 import { reverseGeocodeLocation } from "../utils/location";
 
@@ -14,6 +15,7 @@ const USER_LOCATION_SUBTITLE_KEY = "saha_food_user_location_subtitle";
 export function Header() {
   const { user, logout } = useAuth();
   const { totalItems } = useCart();
+  const { showToast } = useToast();
   const { pathname } = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [locationLabel, setLocationLabel] = useState("");
@@ -32,7 +34,11 @@ export function Header() {
   };
 
   const fetchCurrentLocation = () => {
-    if (!navigator.geolocation || isLocationLoading) return;
+    if (isLocationLoading) return;
+    if (!navigator.geolocation) {
+      showToast("Location not supported on this device. Please select manually.", "warning");
+      return;
+    }
     setIsLocationLoading(true);
 
     navigator.geolocation.getCurrentPosition(
@@ -52,13 +58,14 @@ export function Header() {
           setLocationLabel(label);
           setLocationSubtitle(subtitle);
         } catch (_error) {
-          // Keep silent to avoid noisy UI in header.
+          showToast("Unable to detect location details. Please select manually.", "warning");
         } finally {
           setIsLocationLoading(false);
         }
       },
       () => {
         setIsLocationLoading(false);
+        showToast("Location permission denied. Please select manually.", "warning");
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -71,9 +78,6 @@ export function Header() {
 
   useEffect(() => {
     syncLocationFromStorage();
-    if (!localStorage.getItem(USER_LOCATION_LABEL_KEY) && !localStorage.getItem(USER_LOCATION_KEY)) {
-      fetchCurrentLocation();
-    }
 
     const onStorage = (event) => {
       if (
