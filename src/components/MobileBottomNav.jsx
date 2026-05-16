@@ -25,19 +25,19 @@ export function MobileBottomNav() {
   return (
     <nav className="mobile-bottom-nav" aria-label="Mobile bottom navigation">
       <NavLink to="/" end className="mobile-bottom-item">
-        <span className="mobile-bottom-icon">HM</span>
+        <span className="mobile-bottom-icon">{"\u{1F3E0}"}</span>
         <span>Home</span>
       </NavLink>
       <a href="/#menu" className="mobile-bottom-item" onClick={onCategoriesClick}>
-        <span className="mobile-bottom-icon">CG</span>
+        <span className="mobile-bottom-icon">{"\u{1F37D}\uFE0F"}</span>
         <span>Categories</span>
       </a>
       <NavLink to="/orders" className="mobile-bottom-item">
-        <span className="mobile-bottom-icon">OD</span>
+        <span className="mobile-bottom-icon">{"\u{1F9FE}"}</span>
         <span>My Orders</span>
       </NavLink>
       <NavLink to="/cart" className="mobile-bottom-item mobile-bottom-cart">
-        <span className="mobile-bottom-icon">CR</span>
+        <span className="mobile-bottom-icon">{"\u{1F6CD}\uFE0F"}</span>
         <span>Cart</span>
         {totalItems > 0 && <em>{totalItems}</em>}
       </NavLink>

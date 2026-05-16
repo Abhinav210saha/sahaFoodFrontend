@@ -307,7 +307,9 @@ export function AdminPage() {
     }
   };
 
-  const addServiceZone = () => {
+  const addServiceZone = async () => {
+    setMessage("");
+    setError("");
     const nextZone = {
       state: zoneForm.state.trim(),
       city: zoneForm.city.trim(),
@@ -319,11 +321,18 @@ export function AdminPage() {
       isActive: true,
     };
     if (!nextZone.state && !nextZone.city && !nextZone.area && nextZone.pincodes.length === 0) return;
-    setDeliveryConfig((prev) => ({
-      ...prev,
-      serviceableZones: [...(prev.serviceableZones || []), nextZone],
-    }));
-    setZoneForm(defaultZoneForm);
+    try {
+      const nextConfig = {
+        ...deliveryConfig,
+        serviceableZones: [...(deliveryConfig.serviceableZones || []), nextZone],
+      };
+      await api.updateDeliveryConfig(nextConfig, token);
+      setMessage("Service zone added and saved.");
+      setZoneForm(defaultZoneForm);
+      await loadData();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const removeServiceZone = (index) => {
