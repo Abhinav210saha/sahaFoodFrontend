@@ -185,15 +185,7 @@ export function Header() {
         </div>
 
         <nav className="mobile-nav-links">
-          <NavLink to="/">Home</NavLink>
           {user && <NavLink to="/profile">Profile</NavLink>}
-          {user && <NavLink to="/orders">My Orders</NavLink>}
-          {user && (
-            <NavLink to="/cart" className="cart-link">
-              Cart
-              {totalItems > 0 && <span className="cart-badge">{totalItems}</span>}
-            </NavLink>
-          )}
           {isAdmin && <NavLink to="/admin">Admin Panel</NavLink>}
         </nav>
 

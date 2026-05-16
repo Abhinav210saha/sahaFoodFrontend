@@ -29,8 +29,10 @@ const isAddressServiceableByConfig = (config, address) => {
     const zonePincodes = Array.isArray(zone.pincodes) ? zone.pincodes.map(normalizePincode).filter(Boolean) : [];
     const pincodeMatched = zonePincodes.length > 0 && zonePincodes.includes(pincode);
     if (pincodeMatched) return true;
-    if (zoneState !== state || zoneCity !== city) return false;
-    return Boolean(zoneArea && searchable.includes(zoneArea));
+    if (zoneCity && zoneCity !== city) return false;
+    if (zoneState && zoneState !== state) return false;
+    if (zoneArea) return searchable.includes(zoneArea);
+    return Boolean(zoneCity || zoneState);
   });
 };
 

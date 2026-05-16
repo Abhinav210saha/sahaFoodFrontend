@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { FoodCard } from "../components/FoodCard";
 import { useAuth } from "../context/AuthContext";
@@ -129,12 +130,16 @@ const isServiceableByConfig = (config, location) => {
     const zonePincodes = Array.isArray(zone.pincodes) ? zone.pincodes.map(normalizePincode).filter(Boolean) : [];
     const pincodeMatched = zonePincodes.length > 0 && zonePincodes.includes(locationPincode);
     if (pincodeMatched) return true;
-    if (zoneState !== locationState || zoneCity !== locationCity) return false;
-    return Boolean(zoneArea && searchable.includes(zoneArea));
+    if (zoneCity && zoneCity !== locationCity) return false;
+    if (zoneState && zoneState !== locationState) return false;
+    if (zoneArea) return searchable.includes(zoneArea);
+    return Boolean(zoneCity || zoneState);
   });
 };
 
 export function HomePage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { user, token } = useAuth();
   const { showToast } = useToast();
   const { addToCart } = useCart();
@@ -349,6 +354,17 @@ export function HomePage() {
       setSelectedLocationState(selectedAddress.state);
     }
   }, [selectedAddress, selectedLocationCity, selectedLocationPincode]);
+
+  useEffect(() => {
+    if (location.pathname !== "/") return;
+    if (!location.state?.openCategories) return;
+
+    const menuSection = document.getElementById("menu");
+    if (menuSection) {
+      menuSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    navigate("/", { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
 
   const featuredForHero = featuredItems[0] || menu[0];
   const heroImageSrc =
